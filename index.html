@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="fa">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ویرایشگر HTML با تنظیمات بصری</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+            background: #f4f4f4;
+        }
+        .editor-container {
+            max-width: 800px;
+            margin: 20px auto;
+            background: #fff;
+            padding: 15px;
+            border-radius: 5px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+        }
+        .toolbar {
+            margin-bottom: 10px;
+        }
+        .editor {
+            border: 1px solid #ccc;
+            padding: 10px;
+            min-height: 300px;
+            text-align: left;
+            filter: brightness(1) contrast(1);
+            outline: none;
+            overflow-y: auto;
+        }
+        input[type="range"] {
+            width: 100px;
+            margin: 0 10px;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="editor-container">
+        <div class="toolbar">
+            <label>روشنایی: <input type="range" id="brightness" min="0.5" max="2" step="0.1" value="1"></label>
+            <label>کنتراست: <input type="range" id="contrast" min="0.5" max="2" step="0.1" value="1"></label>
+            <button onclick="exportHTML()">دانلود HTML</button>
+        </div>
+        <div id="editor" class="editor" contenteditable="true">
+            <h2>ویرایشگر HTML</h2>
+            <p>اینجا می‌توانید محتوای خود را بنویسید و تنظیمات روشنایی و کنتراست را تغییر دهید.</p>
+        </div>
+    </div>
+
+    <script>
+        const editor = document.getElementById("editor");
+        const brightnessControl = document.getElementById("brightness");
+        const contrastControl = document.getElementById("contrast");
+
+        function updateFilters() {
+            editor.style.filter = `brightness(${brightnessControl.value}) contrast(${contrastControl.value})`;
+        }
+
+        brightnessControl.addEventListener("input", updateFilters);
+        contrastControl.addEventListener("input", updateFilters);
+
+        function exportHTML() {
+            const content = editor.innerHTML;
+            const blob = new Blob([content], { type: "text/html" });
+            const a = document.createElement("a");
+            a.href = URL.createObjectURL(blob);
+            a.download = "editor-content.html";
+            a.click();
+        }
+    </script>
+
+</body>
+</html>
