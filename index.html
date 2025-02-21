@@ -3,76 +3,95 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>تشخیص حالت دست</title>
-    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js"></script>
+    <title>تشخیص اعضای بدن و حذف پس‌زمینه</title>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/pose"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-core"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-converter"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-backend-webgl"></script>
     <style>
-        body { text-align: center; font-family: Arial, sans-serif; }
-        video, canvas { position: absolute; left: 50%; transform: translateX(-50%); }
-        #status { margin-top: 500px; font-size: 24px; }
+        body {
+            text-align: center;
+            font-family: Arial, sans-serif;
+        }
+        video, canvas {
+            width: 100%;
+            max-width: 400px;
+            border: 2px solid black;
+        }
     </style>
 </head>
 <body>
-    <h2>تشخیص حالت دست با MediaPipe</h2>
+    <h2>تشخیص بدن و حذف پس‌زمینه</h2>
     <video id="video" autoplay playsinline></video>
     <canvas id="canvas"></canvas>
-    <div id="status">منتظر دریافت اطلاعات...</div>
-
     <script>
-        const videoElement = document.getElementById("video");
-        const canvasElement = document.getElementById("canvas");
-        const canvasCtx = canvasElement.getContext("2d");
-        const statusText = document.getElementById("status");
+        const video = document.getElementById("video");
+        const canvas = document.getElementById("canvas");
+        const ctx = canvas.getContext("2d");
 
-        async function startCamera() {
-            const stream = await navigator.mediaDevices.getUserMedia({ video: true });
-            videoElement.srcObject = stream;
+        // دریافت ویدیو از دوربین
+        navigator.mediaDevices.getUserMedia({ video: true })
+            .then(stream => {
+                video.srcObject = stream;
+            })
+            .catch(err => console.error("خطا در دریافت ویدیو:", err));
+
+        async function setupPose() {
+            const pose = new Pose.Pose({
+                locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/pose/${file}`
+            });
+
+            pose.setOptions({
+                modelComplexity: 1,
+                smoothLandmarks: true,
+                enableSegmentation: true,
+                smoothSegmentation: true
+            });
+
+            pose.onResults(processResults);
+
+            async function detectPose() {
+                await pose.send({ image: video });
+                requestAnimationFrame(detectPose);
+            }
+
+            await pose.initialize();
+            detectPose();
         }
 
-        const hands = new Hands({ locateFile: file => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}` });
+        function processResults(results) {
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-        hands.setOptions({
-            maxNumHands: 2,
-            modelComplexity: 1,
-            minDetectionConfidence: 0.5,
-            minTrackingConfidence: 0.5
-        });
+            if (results.segmentationMask) {
+                ctx.drawImage(results.segmentationMask, 0, 0, canvas.width, canvas.height);
 
-        hands.onResults(results => {
-            canvasElement.width = videoElement.videoWidth;
-            canvasElement.height = videoElement.videoHeight;
-            canvasCtx.clearRect(0, 0, canvasElement.width, canvasElement.height);
-            
-            if (results.multiHandLandmarks.length > 0) {
-                for (const landmarks of results.multiHandLandmarks) {
-                    drawConnectors(canvasCtx, landmarks, HAND_CONNECTIONS, { color: '#00FF00', lineWidth: 2 });
-                    drawLandmarks(canvasCtx, landmarks, { color: '#FF0000', radius: 5 });
+                const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+                const data = imageData.data;
 
-                    // تشخیص حالت دست (مثلاً تعداد انگشتان باز)
-                    let fingersUp = 0;
-                    if (landmarks[8].y < landmarks[6].y) fingersUp++;  // انگشت اشاره
-                    if (landmarks[12].y < landmarks[10].y) fingersUp++; // انگشت وسط
-                    if (landmarks[16].y < landmarks[14].y) fingersUp++; // انگشت حلقه
-                    if (landmarks[20].y < landmarks[18].y) fingersUp++; // انگشت کوچک
-                    if (landmarks[4].x > landmarks[2].x) fingersUp++;   // انگشت شست
-                    
-                    statusText.innerText = `تعداد انگشتان باز: ${fingersUp}`;
+                for (let i = 0; i < data.length; i += 4) {
+                    if (data[i + 3] < 200) { // مقدار شفافیت پس‌زمینه
+                        data[i + 3] = 0; // کاملاً شفاف
+                    }
                 }
-            } else {
-                statusText.innerText = "دستی شناسایی نشد!";
+
+                ctx.putImageData(imageData, 0, 0);
             }
-        });
 
-        const camera = new Camera(videoElement, {
-            onFrame: async () => {
-                await hands.send({ image: videoElement });
-            },
-            width: 640,
-            height: 480
-        });
+            if (results.poseLandmarks) {
+                ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
 
-        startCamera().then(() => camera.start());
+                results.poseLandmarks.forEach((landmark) => {
+                    ctx.fillStyle = "red";
+                    ctx.beginPath();
+                    ctx.arc(landmark.x * canvas.width, landmark.y * canvas.height, 5, 0, 2 * Math.PI);
+                    ctx.fill();
+                });
+            }
+        }
+
+        video.addEventListener("loadeddata", setupPose);
     </script>
 </body>
 </html>
