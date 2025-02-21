@@ -3,74 +3,76 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ویرایشگر HTML با تنظیمات بصری</title>
+    <title>تشخیص حالت دست</title>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js"></script>
     <style>
-        body {
-            font-family: Arial, sans-serif;
-            text-align: center;
-            background: #f4f4f4;
-        }
-        .editor-container {
-            max-width: 800px;
-            margin: 20px auto;
-            background: #fff;
-            padding: 15px;
-            border-radius: 5px;
-            box-shadow: 0 0 10px rgba(0,0,0,0.1);
-        }
-        .toolbar {
-            margin-bottom: 10px;
-        }
-        .editor {
-            border: 1px solid #ccc;
-            padding: 10px;
-            min-height: 300px;
-            text-align: left;
-            filter: brightness(1) contrast(1);
-            outline: none;
-            overflow-y: auto;
-        }
-        input[type="range"] {
-            width: 100px;
-            margin: 0 10px;
-        }
+        body { text-align: center; font-family: Arial, sans-serif; }
+        video, canvas { position: absolute; left: 50%; transform: translateX(-50%); }
+        #status { margin-top: 500px; font-size: 24px; }
     </style>
 </head>
 <body>
-
-    <div class="editor-container">
-        <div class="toolbar">
-            <label>روشنایی: <input type="range" id="brightness" min="0.5" max="2" step="0.1" value="1"></label>
-            <label>کنتراست: <input type="range" id="contrast" min="0.5" max="2" step="0.1" value="1"></label>
-            <button onclick="exportHTML()">دانلود HTML</button>
-        </div>
-        <div id="editor" class="editor" contenteditable="true">
-            <h2>ویرایشگر HTML</h2>
-            <p>اینجا می‌توانید محتوای خود را بنویسید و تنظیمات روشنایی و کنتراست را تغییر دهید.</p>
-        </div>
-    </div>
+    <h2>تشخیص حالت دست با MediaPipe</h2>
+    <video id="video" autoplay playsinline></video>
+    <canvas id="canvas"></canvas>
+    <div id="status">منتظر دریافت اطلاعات...</div>
 
     <script>
-        const editor = document.getElementById("editor");
-        const brightnessControl = document.getElementById("brightness");
-        const contrastControl = document.getElementById("contrast");
+        const videoElement = document.getElementById("video");
+        const canvasElement = document.getElementById("canvas");
+        const canvasCtx = canvasElement.getContext("2d");
+        const statusText = document.getElementById("status");
 
-        function updateFilters() {
-            editor.style.filter = `brightness(${brightnessControl.value}) contrast(${contrastControl.value})`;
+        async function startCamera() {
+            const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+            videoElement.srcObject = stream;
         }
 
-        brightnessControl.addEventListener("input", updateFilters);
-        contrastControl.addEventListener("input", updateFilters);
+        const hands = new Hands({ locateFile: file => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}` });
 
-        function exportHTML() {
-            const content = editor.innerHTML;
-            const blob = new Blob([content], { type: "text/html" });
-            const a = document.createElement("a");
-            a.href = URL.createObjectURL(blob);
-            a.download = "editor-content.html";
-            a.click();
-        }
+        hands.setOptions({
+            maxNumHands: 2,
+            modelComplexity: 1,
+            minDetectionConfidence: 0.5,
+            minTrackingConfidence: 0.5
+        });
+
+        hands.onResults(results => {
+            canvasElement.width = videoElement.videoWidth;
+            canvasElement.height = videoElement.videoHeight;
+            canvasCtx.clearRect(0, 0, canvasElement.width, canvasElement.height);
+            
+            if (results.multiHandLandmarks.length > 0) {
+                for (const landmarks of results.multiHandLandmarks) {
+                    drawConnectors(canvasCtx, landmarks, HAND_CONNECTIONS, { color: '#00FF00', lineWidth: 2 });
+                    drawLandmarks(canvasCtx, landmarks, { color: '#FF0000', radius: 5 });
+
+                    // تشخیص حالت دست (مثلاً تعداد انگشتان باز)
+                    let fingersUp = 0;
+                    if (landmarks[8].y < landmarks[6].y) fingersUp++;  // انگشت اشاره
+                    if (landmarks[12].y < landmarks[10].y) fingersUp++; // انگشت وسط
+                    if (landmarks[16].y < landmarks[14].y) fingersUp++; // انگشت حلقه
+                    if (landmarks[20].y < landmarks[18].y) fingersUp++; // انگشت کوچک
+                    if (landmarks[4].x > landmarks[2].x) fingersUp++;   // انگشت شست
+                    
+                    statusText.innerText = `تعداد انگشتان باز: ${fingersUp}`;
+                }
+            } else {
+                statusText.innerText = "دستی شناسایی نشد!";
+            }
+        });
+
+        const camera = new Camera(videoElement, {
+            onFrame: async () => {
+                await hands.send({ image: videoElement });
+            },
+            width: 640,
+            height: 480
+        });
+
+        startCamera().then(() => camera.start());
     </script>
-
 </body>
 </html>
