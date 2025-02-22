@@ -3,74 +3,70 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>تشخیص اعضای بدن و حرکات</title>
-    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs"></script>
+    <title>تشخیص اعضای بدن</title>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/pose"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-core"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-converter"></script>
     <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/pose-detection"></script>
     <style>
-        body { text-align: center; }
-        video, canvas { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); }
+        body {
+            text-align: center;
+            background-color: black;
+            color: white;
+        }
+        video, canvas {
+            position: absolute;
+            left: 50%;
+            top: 50%;
+            transform: translate(-50%, -50%);
+            width: 640px;
+            height: 480px;
+        }
     </style>
 </head>
 <body>
-    <h1>تشخیص اعضای بدن و حرکات با دوربین</h1>
     <video id="video" autoplay playsinline></video>
     <canvas id="canvas"></canvas>
 
     <script>
-        async function setupCamera() {
+        async function init() {
             const video = document.getElementById("video");
-            video.width = 640;
-            video.height = 480;
-
-            const stream = await navigator.mediaDevices.getUserMedia({
-                video: true
-            });
-            video.srcObject = stream;
-            return new Promise((resolve) => {
-                video.onloadedmetadata = () => resolve(video);
-            });
-        }
-
-        async function loadModel() {
-            return await poseDetection.createDetector(poseDetection.SupportedModels.MoveNet);
-        }
-
-        async function detectPose(detector, video, canvas) {
+            const canvas = document.getElementById("canvas");
             const ctx = canvas.getContext("2d");
-            canvas.width = video.width;
-            canvas.height = video.height;
 
-            async function poseDetectionFrame() {
+            // گرفتن استریم ویدیو از دوربین
+            const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+            video.srcObject = stream;
+
+            const detector = await poseDetection.createDetector(poseDetection.SupportedModels.MoveNet);
+
+            async function detectPose() {
                 const poses = await detector.estimatePoses(video);
+
                 ctx.clearRect(0, 0, canvas.width, canvas.height);
                 ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
 
-                if (poses.length > 0) {
-                    for (const keypoint of poses[0].keypoints) {
-                        const { x, y, score } = keypoint;
-                        if (score > 0.3) {
+                for (const pose of poses) {
+                    for (const keypoint of pose.keypoints) {
+                        if (keypoint.score > 0.3) {
                             ctx.beginPath();
-                            ctx.arc(x, y, 5, 0, 2 * Math.PI);
+                            ctx.arc(keypoint.x, keypoint.y, 5, 0, 2 * Math.PI);
                             ctx.fillStyle = "red";
                             ctx.fill();
                         }
                     }
                 }
-
-                requestAnimationFrame(poseDetectionFrame);
+                requestAnimationFrame(detectPose);
             }
 
-            poseDetectionFrame();
+            video.onloadeddata = () => {
+                canvas.width = video.videoWidth;
+                canvas.height = video.videoHeight;
+                detectPose();
+            };
         }
 
-        async function main() {
-            const video = await setupCamera();
-            const detector = await loadModel();
-            const canvas = document.getElementById("canvas");
-            detectPose(detector, video, canvas);
-        }
-
-        main();
+        init();
     </script>
 </body>
 </html>
