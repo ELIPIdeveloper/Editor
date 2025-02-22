@@ -3,70 +3,69 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>تشخیص اعضای بدن</title>
-    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/pose"></script>
+    <title>Face Filter مثل اسنپ چت</title>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/face_mesh.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-core"></script>
     <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-converter"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/pose-detection"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/facemesh"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <style>
-        body {
-            text-align: center;
-            background-color: black;
-            color: white;
-        }
-        video, canvas {
-            position: absolute;
-            left: 50%;
-            top: 50%;
-            transform: translate(-50%, -50%);
-            width: 640px;
-            height: 480px;
-        }
+        body { text-align: center; background: black; color: white; }
+        video { position: absolute; left: 0; top: 0; width: 100%; height: 100%; opacity: 0.5; }
+        canvas { position: absolute; left: 0; top: 0; }
     </style>
 </head>
 <body>
     <video id="video" autoplay playsinline></video>
-    <canvas id="canvas"></canvas>
-
+    <canvas id="output"></canvas>
     <script>
-        async function init() {
-            const video = document.getElementById("video");
-            const canvas = document.getElementById("canvas");
-            const ctx = canvas.getContext("2d");
-
-            // گرفتن استریم ویدیو از دوربین
-            const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+        async function setupCamera() {
+            const video = document.getElementById('video');
+            const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' } });
             video.srcObject = stream;
-
-            const detector = await poseDetection.createDetector(poseDetection.SupportedModels.MoveNet);
-
-            async function detectPose() {
-                const poses = await detector.estimatePoses(video);
-
-                ctx.clearRect(0, 0, canvas.width, canvas.height);
-                ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-
-                for (const pose of poses) {
-                    for (const keypoint of pose.keypoints) {
-                        if (keypoint.score > 0.3) {
-                            ctx.beginPath();
-                            ctx.arc(keypoint.x, keypoint.y, 5, 0, 2 * Math.PI);
-                            ctx.fillStyle = "red";
-                            ctx.fill();
-                        }
-                    }
-                }
-                requestAnimationFrame(detectPose);
-            }
-
-            video.onloadeddata = () => {
-                canvas.width = video.videoWidth;
-                canvas.height = video.videoHeight;
-                detectPose();
-            };
+            return new Promise((resolve) => { video.onloadedmetadata = () => resolve(video); });
         }
 
-        init();
+        async function start() {
+            const video = await setupCamera();
+            const model = await facemesh.load();
+            const canvas = document.getElementById('output');
+            const ctx = canvas.getContext('2d');
+
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+
+            async function detectFace() {
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                const predictions = await model.estimateFaces(video);
+                if (predictions.length > 0) {
+                    for (const face of predictions) {
+                        const keypoints = face.scaledMesh;
+
+                        // رسم چهره (فقط برای تست)
+                        ctx.fillStyle = 'red';
+                        for (let i = 0; i < keypoints.length; i++) {
+                            const [x, y] = keypoints[i];
+                            ctx.beginPath();
+                            ctx.arc(x, y, 2, 0, 2 * Math.PI);
+                            ctx.fill();
+                        }
+
+                        // اضافه کردن تصویر ماسک
+                        const img = new Image();
+                        img.src = 'mask.png';  // تصویر ماسک دلخواه
+                        img.onload = () => {
+                            const nose = keypoints[4]; // موقعیت بینی
+                            ctx.drawImage(img, nose[0] - 50, nose[1] - 50, 100, 100);
+                        };
+                    }
+                }
+                requestAnimationFrame(detectFace);
+            }
+            detectFace();
+        }
+
+        start();
     </script>
 </body>
 </html>
