@@ -3,82 +3,22 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>3D Model Viewer</title>
-    <style>
-        body { margin: 0; overflow: hidden; }
-        canvas { display: block; }
-    </style>
+    <title>نمایش مدل GLB در AR</title>
 </head>
 <body>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/loaders/GLTFLoader.js"></script>
-    <script>
-        // Initialize scene, camera, renderer
-        const scene = new THREE.Scene();
-        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-        const renderer = new THREE.WebGLRenderer();
-        renderer.setSize(window.innerWidth, window.innerHeight);
-        document.body.appendChild(renderer.domElement);
 
-        // Initialize Raycaster and mouse position
-        const raycaster = new THREE.Raycaster();
-        const mouse = new THREE.Vector2();
+<model-viewer src="https://s32.picofile.com/d/8479643842/d7994f62-626f-43e0-9f92-1b0e78cdb2a7/sadrdr.glb" 
+              alt="مدل 3D" 
+              auto-rotate 
+              camera-controls 
+              ar 
+              ar-modes="webxr scene-viewer quick-look" 
+              style="width: 100%; height: 600px;">
+</model-viewer>
 
-        // Add ambient light and directional light
-        const light = new THREE.AmbientLight(0x404040); // Ambient light
-        scene.add(light);
+<script type="module">
+    import '@google/model-viewer';
+</script>
 
-        const dirLight = new THREE.DirectionalLight(0xffffff, 1);
-        dirLight.position.set(10, 10, 10);
-        scene.add(dirLight);
-
-        // Load 3D model from URL
-        const loader = new THREE.GLTFLoader();
-        loader.load('https://s32.picofile.com/d/8479643842/d7994f62-626f-43e0-9f92-1b0e78cdb2a7/sadrdr.glb', function (gltf) {
-            scene.add(gltf.scene);
-            animate();
-        }, undefined, function (error) {
-            console.error(error);
-        });
-
-        // Set camera position
-        camera.position.z = 5;
-
-        // Handle mouse move for Raycasting
-        function onMouseMove(event) {
-            event.preventDefault();
-            mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
-            mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
-        }
-
-        // Add event listener for mouse move
-        window.addEventListener('mousemove', onMouseMove, false);
-
-        // Animate and render scene
-        function animate() {
-            requestAnimationFrame(animate);
-
-            // Update raycaster with mouse position
-            raycaster.update(camera.position, camera.getWorldDirection(new THREE.Vector3()));
-            raycaster.update(camera.position, mouse);
-
-            // Raycasting to detect intersections with 3D objects
-            const intersects = raycaster.intersectObjects(scene.children, true);
-
-            if (intersects.length > 0) {
-                // Highlight or perform an action when a surface is intersected
-                intersects[0].object.material.color.set(0xff0000);
-            }
-
-            renderer.render(scene, camera);
-        }
-
-        // Resize handling
-        window.addEventListener('resize', function () {
-            renderer.setSize(window.innerWidth, window.innerHeight);
-            camera.aspect = window.innerWidth / window.innerHeight;
-            camera.updateProjectionMatrix();
-        });
-    </script>
 </body>
 </html>
