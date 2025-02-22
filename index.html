@@ -8,39 +8,15 @@
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js"></script>
     <style>
-        body {
-            text-align: center;
-            font-family: Arial, sans-serif;
-            background-color: #f4f4f4;
-        }
-        h2 {
-            margin-top: 20px;
-        }
-        .container {
-            position: relative;
-            display: inline-block;
-        }
-        video, canvas {
-            width: 640px;
-            height: 480px;
-            position: absolute;
-            left: 50%;
-            transform: translateX(-50%) scaleX(-1); /* آینه‌ای کردن ویدیو */
-        }
-        #status {
-            margin-top: 520px;
-            font-size: 24px;
-            font-weight: bold;
-            color: #333;
-        }
+        body { text-align: center; font-family: Arial, sans-serif; }
+        video, canvas { position: absolute; left: 50%; transform: translateX(-50%); }
+        #status { margin-top: 500px; font-size: 24px; }
     </style>
 </head>
 <body>
     <h2>تشخیص حالت دست با MediaPipe</h2>
-    <div class="container">
-        <video id="video" autoplay playsinline></video>
-        <canvas id="canvas"></canvas>
-    </div>
+    <video id="video" autoplay playsinline></video>
+    <canvas id="canvas"></canvas>
     <div id="status">منتظر دریافت اطلاعات...</div>
 
     <script>
@@ -66,19 +42,14 @@
         hands.onResults(results => {
             canvasElement.width = videoElement.videoWidth;
             canvasElement.height = videoElement.videoHeight;
-            canvasCtx.save();
             canvasCtx.clearRect(0, 0, canvasElement.width, canvasElement.height);
             
-            // آینه‌ای کردن تصویر روی بوم (canvas)
-            canvasCtx.translate(canvasElement.width, 0);
-            canvasCtx.scale(-1, 1);
-
             if (results.multiHandLandmarks.length > 0) {
                 for (const landmarks of results.multiHandLandmarks) {
                     drawConnectors(canvasCtx, landmarks, HAND_CONNECTIONS, { color: '#00FF00', lineWidth: 2 });
                     drawLandmarks(canvasCtx, landmarks, { color: '#FF0000', radius: 5 });
 
-                    // تشخیص تعداد انگشتان باز
+                    // تشخیص حالت دست (مثلاً تعداد انگشتان باز)
                     let fingersUp = 0;
                     if (landmarks[8].y < landmarks[6].y) fingersUp++;  // انگشت اشاره
                     if (landmarks[12].y < landmarks[10].y) fingersUp++; // انگشت وسط
@@ -91,8 +62,6 @@
             } else {
                 statusText.innerText = "دستی شناسایی نشد!";
             }
-
-            canvasCtx.restore();
         });
 
         const camera = new Camera(videoElement, {
