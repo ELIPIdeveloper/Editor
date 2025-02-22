@@ -3,25 +3,37 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>نمایش 3D در AR</title>
-    <script src="https://aframe.io/releases/1.4.0/aframe.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@google/model-viewer/dist/model-viewer.min.js"></script>
+    <title>نمایش مدل 3D در AR</title>
+    <!-- اضافه کردن کتابخانه model-viewer -->
+    <script type="module" src="https://unpkg.com/@google/model-viewer/dist/model-viewer.js"></script>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            background-color: #f0f0f0;
+        }
+        model-viewer {
+            width: 100%;
+            height: 100%;
+            max-width: 600px;
+            max-height: 600px;
+        }
+    </style>
 </head>
-<body style="margin: 0; overflow: hidden;">
-    <a-scene embedded arjs="sourceType: webcam;">
-        <!-- اضافه کردن یک منبع نور -->
-        <a-entity light="type: ambient; color: #FFFFFF"></a-entity>
-
-        <!-- لود مدل GLB -->
-        <a-entity gltf-model="https://s32.picofile.com/d/8479643842/d7994f62-626f-43e0-9f92-1b0e78cdb2a7/sadrdr.glb" scale="0.5 0.5 0.5" position="0 0 0" rotation="0 0 0"></a-entity>
-
-        <!-- کامرا AR -->
-        <a-camera-static></a-camera-static>
-    </a-scene>
-
-    <!-- توضیحات -->
-    <p style="position: fixed; bottom: 10px; left: 10px; color: white; font-family: Arial, sans-serif;">
-        برای نمایش در AR، لطفاً دستگاه هوشمند خود را فعال کنید.
-    </p>
+<body>
+    <!-- تگ model-viewer برای نمایش مدل 3D -->
+    <model-viewer 
+        src="https://s32.picofile.com/d/8479643842/d7994f62-626f-43e0-9f92-1b0e78cdb2a7/sadrdr.glb" 
+        alt="مدل 3D در AR" 
+        ar 
+        ar-modes="scene-viewer webxr quick-look" 
+        camera-controls 
+        auto-rotate 
+        shadow-intensity="1">
+    </model-viewer>
 </body>
 </html>
