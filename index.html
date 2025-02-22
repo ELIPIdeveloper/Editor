@@ -3,22 +3,25 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>نمایش مدل GLB در AR</title>
+    <title>نمایش 3D در AR</title>
+    <script src="https://aframe.io/releases/1.4.0/aframe.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@google/model-viewer/dist/model-viewer.min.js"></script>
 </head>
-<body>
+<body style="margin: 0; overflow: hidden;">
+    <a-scene embedded arjs="sourceType: webcam;">
+        <!-- اضافه کردن یک منبع نور -->
+        <a-entity light="type: ambient; color: #FFFFFF"></a-entity>
 
-<model-viewer src="https://s32.picofile.com/d/8479643842/d7994f62-626f-43e0-9f92-1b0e78cdb2a7/sadrdr.glb" 
-              alt="مدل 3D" 
-              auto-rotate 
-              camera-controls 
-              ar 
-              ar-modes="webxr scene-viewer quick-look" 
-              style="width: 100%; height: 600px;">
-</model-viewer>
+        <!-- لود مدل GLB -->
+        <a-entity gltf-model="https://s32.picofile.com/d/8479643842/d7994f62-626f-43e0-9f92-1b0e78cdb2a7/sadrdr.glb" scale="0.5 0.5 0.5" position="0 0 0" rotation="0 0 0"></a-entity>
 
-<script type="module">
-    import '@google/model-viewer';
-</script>
+        <!-- کامرا AR -->
+        <a-camera-static></a-camera-static>
+    </a-scene>
 
+    <!-- توضیحات -->
+    <p style="position: fixed; bottom: 10px; left: 10px; color: white; font-family: Arial, sans-serif;">
+        برای نمایش در AR، لطفاً دستگاه هوشمند خود را فعال کنید.
+    </p>
 </body>
 </html>
