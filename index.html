@@ -3,76 +3,74 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>تشخیص حالت دست</title>
-    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js"></script>
+    <title>تشخیص اعضای بدن و حرکات</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/pose-detection"></script>
     <style>
-        body { text-align: center; font-family: Arial, sans-serif; }
-        video, canvas { position: absolute; left: 50%; transform: translateX(-50%); }
-        #status { margin-top: 500px; font-size: 24px; }
+        body { text-align: center; }
+        video, canvas { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); }
     </style>
 </head>
 <body>
-    <h2>تشخیص حالت دست با MediaPipe</h2>
+    <h1>تشخیص اعضای بدن و حرکات با دوربین</h1>
     <video id="video" autoplay playsinline></video>
     <canvas id="canvas"></canvas>
-    <div id="status">منتظر دریافت اطلاعات...</div>
 
     <script>
-        const videoElement = document.getElementById("video");
-        const canvasElement = document.getElementById("canvas");
-        const canvasCtx = canvasElement.getContext("2d");
-        const statusText = document.getElementById("status");
+        async function setupCamera() {
+            const video = document.getElementById("video");
+            video.width = 640;
+            video.height = 480;
 
-        async function startCamera() {
-            const stream = await navigator.mediaDevices.getUserMedia({ video: true });
-            videoElement.srcObject = stream;
+            const stream = await navigator.mediaDevices.getUserMedia({
+                video: true
+            });
+            video.srcObject = stream;
+            return new Promise((resolve) => {
+                video.onloadedmetadata = () => resolve(video);
+            });
         }
 
-        const hands = new Hands({ locateFile: file => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}` });
+        async function loadModel() {
+            return await poseDetection.createDetector(poseDetection.SupportedModels.MoveNet);
+        }
 
-        hands.setOptions({
-            maxNumHands: 2,
-            modelComplexity: 1,
-            minDetectionConfidence: 0.5,
-            minTrackingConfidence: 0.5
-        });
+        async function detectPose(detector, video, canvas) {
+            const ctx = canvas.getContext("2d");
+            canvas.width = video.width;
+            canvas.height = video.height;
 
-        hands.onResults(results => {
-            canvasElement.width = videoElement.videoWidth;
-            canvasElement.height = videoElement.videoHeight;
-            canvasCtx.clearRect(0, 0, canvasElement.width, canvasElement.height);
-            
-            if (results.multiHandLandmarks.length > 0) {
-                for (const landmarks of results.multiHandLandmarks) {
-                    drawConnectors(canvasCtx, landmarks, HAND_CONNECTIONS, { color: '#00FF00', lineWidth: 2 });
-                    drawLandmarks(canvasCtx, landmarks, { color: '#FF0000', radius: 5 });
+            async function poseDetectionFrame() {
+                const poses = await detector.estimatePoses(video);
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
 
-                    // تشخیص حالت دست (مثلاً تعداد انگشتان باز)
-                    let fingersUp = 0;
-                    if (landmarks[8].y < landmarks[6].y) fingersUp++;  // انگشت اشاره
-                    if (landmarks[12].y < landmarks[10].y) fingersUp++; // انگشت وسط
-                    if (landmarks[16].y < landmarks[14].y) fingersUp++; // انگشت حلقه
-                    if (landmarks[20].y < landmarks[18].y) fingersUp++; // انگشت کوچک
-                    if (landmarks[4].x > landmarks[2].x) fingersUp++;   // انگشت شست
-                    
-                    statusText.innerText = `تعداد انگشتان باز: ${fingersUp}`;
+                if (poses.length > 0) {
+                    for (const keypoint of poses[0].keypoints) {
+                        const { x, y, score } = keypoint;
+                        if (score > 0.3) {
+                            ctx.beginPath();
+                            ctx.arc(x, y, 5, 0, 2 * Math.PI);
+                            ctx.fillStyle = "red";
+                            ctx.fill();
+                        }
+                    }
                 }
-            } else {
-                statusText.innerText = "دستی شناسایی نشد!";
+
+                requestAnimationFrame(poseDetectionFrame);
             }
-        });
 
-        const camera = new Camera(videoElement, {
-            onFrame: async () => {
-                await hands.send({ image: videoElement });
-            },
-            width: 640,
-            height: 480
-        });
+            poseDetectionFrame();
+        }
 
-        startCamera().then(() => camera.start());
+        async function main() {
+            const video = await setupCamera();
+            const detector = await loadModel();
+            const canvas = document.getElementById("canvas");
+            detectPose(detector, video, canvas);
+        }
+
+        main();
     </script>
 </body>
 </html>
