@@ -3,61 +3,74 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>شناسایی اشیاء با دوربین</title>
-    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/coco-ssd"></script>
-    <style>
-        body { text-align: center; font-family: Arial, sans-serif; }
-        canvas { position: absolute; top: 0; left: 0; }
-    </style>
+    <title>صداشناسی آفلاین با Vosk</title>
+    <script src="vosk-browser.js"></script>
 </head>
 <body>
-    <h2>تشخیص اشیاء با دوربین</h2>
-    <video id="video" width="640" height="480" autoplay></video>
-    <canvas id="canvas" width="640" height="480"></canvas>
+    <h1>ضبط صدا برای شناسایی کلمات با Vosk</h1>
+    <button id="start-btn">شروع ضبط</button>
+    <button id="stop-btn" disabled>اتمام ضبط</button>
+    <div>
+        <h3>نتیجه شناسایی:</h3>
+        <pre id="result"></pre>
+    </div>
 
     <script>
-        const video = document.getElementById('video');
-        const canvas = document.getElementById('canvas');
-        const ctx = canvas.getContext('2d');
+        const startBtn = document.getElementById('start-btn');
+        const stopBtn = document.getElementById('stop-btn');
+        const resultElement = document.getElementById('result');
+        let recognizer = null;
+        let recorder = null;
+        let audioChunks = [];
 
-        async function setupCamera() {
-            const stream = await navigator.mediaDevices.getUserMedia({ video: true });
-            video.srcObject = stream;
-            return new Promise(resolve => {
-                video.onloadedmetadata = () => resolve(video);
-            });
+        // بارگذاری مدل Vosk
+        async function loadModel() {
+            try {
+                recognizer = await Vosk.createRecognizer('model'); // مسیری به مدل خود را بدهید
+                console.log('Model loaded');
+            } catch (e) {
+                console.error('Error loading model', e);
+            }
         }
 
-        async function detectObjects() {
-            const model = await cocoSsd.load();
-            console.log("مدل بارگذاری شد!");
-
-            async function detect() {
-                const predictions = await model.detect(video);
-                ctx.clearRect(0, 0, canvas.width, canvas.height);
-                ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-
-                predictions.forEach(prediction => {
-                    ctx.beginPath();
-                    ctx.rect(...prediction.bbox);
-                    ctx.lineWidth = 2;
-                    ctx.strokeStyle = 'red';
-                    ctx.fillStyle = 'red';
-                    ctx.stroke();
-                    ctx.fillText(`${prediction.class} (${Math.round(prediction.score * 100)}%)`, prediction.bbox[0], prediction.bbox[1] - 5);
-                });
-
-                requestAnimationFrame(detect);
+        // شروع ضبط صدا
+        startBtn.onclick = async () => {
+            if (!recognizer) {
+                await loadModel();
             }
 
-            detect();
-        }
+            navigator.mediaDevices.getUserMedia({ audio: true })
+                .then(stream => {
+                    recorder = new MediaRecorder(stream);
+                    recorder.ondataavailable = (event) => {
+                        audioChunks.push(event.data);
+                    };
+                    recorder.onstop = () => {
+                        const audioBlob = new Blob(audioChunks, { type: 'audio/wav' });
+                        const reader = new FileReader();
+                        reader.onload = () => {
+                            const buffer = reader.result;
+                            const audioData = new Int16Array(buffer);
+                            const result = recognizer.acceptWaveform(audioData);
+                            if (result) {
+                                const resultObj = JSON.parse(result);
+                                resultElement.textContent = resultObj.text;
+                            }
+                        };
+                        reader.readAsArrayBuffer(audioBlob);
+                    };
+                    recorder.start();
+                    startBtn.disabled = true;
+                    stopBtn.disabled = false;
+                });
+        };
 
-        (async () => {
-            await setupCamera();
-            detectObjects();
-        })();
+        // توقف ضبط
+        stopBtn.onclick = () => {
+            recorder.stop();
+            startBtn.disabled = false;
+            stopBtn.disabled = true;
+        };
     </script>
 </body>
 </html>
