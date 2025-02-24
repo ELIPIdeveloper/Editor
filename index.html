@@ -1,50 +1,76 @@
-<!DOCTYPE html><html lang="fa">
+<!DOCTYPE html>
+<html lang="fa">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Vosk Offline Speech Recognition</title>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/vosk/0.3.32/vosk.js"></script>
+    <title>تشخیص صدا با Vosk</title>
+    <style>
+        body {
+            font-family: 'IRANSans', Tahoma, sans-serif;
+            direction: rtl;
+            text-align: center;
+            margin-top: 50px;
+        }
+        #output {
+            margin-top: 20px;
+            font-size: 18px;
+            color: #333;
+        }
+    </style>
 </head>
 <body>
-    <button id="loadModel">لود مدل</button>
-    <button id="startRecognition" disabled>شروع تشخیص</button>
-    <p id="result">متن تشخیص داده شده: </p><script>
-    let recognizer;
-    document.getElementById("loadModel").addEventListener("click", async function() {
-        const modelURL = "https://alphacephei.com/vosk/models/vosk-model-small-fa-0.5.zip";
-        recognizer = new vosk.Recognizer({
-            modelPath: modelURL,
-            sampleRate: 16000
+
+    <h1>تشخیص صدا با مدل فارسی Vosk</h1>
+    <button id="startBtn">شروع تشخیص</button>
+    <button id="stopBtn" disabled>توقف</button>
+    <div id="output">متن تشخیص‌شده اینجا نمایش داده می‌شود...</div>
+
+    <!-- لینک به کتابخانه Vosk -->
+    <script src="https://cdn.jsdelivr.net/npm/@alphacep/vosk-browser@latest/vosk.js"></script>
+    <script>
+        let recognizer = null;
+        let speechRecognition = null;
+
+        document.getElementById('startBtn').addEventListener('click', async () => {
+            if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+                alert('مرورگر شما از ویژگی‌های ضروری پشتیبانی نمی‌کند.');
+                return;
+            }
+
+            // دریافت دسترسی به میکروفون
+            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            const audioContext = new AudioContext();
+            const audioSource = audioContext.createMediaStreamSource(stream);
+
+            // ایجاد مودل و تشخیص‌کننده
+            const modelUrl = 'vosk-model-small-fa-0.5'; // مسیر مدل فارسی
+            const model = new Vosk.Model(modelUrl);
+            recognizer = new Vosk.Recognizer(model, 16000); // فرکانس نمونه‌برداری 16 kHz
+
+            // پردازش صدا
+            const processor = new Vosk.AudioProcessor(recognizer, audioSource, 16000);
+            processor.onresult = (result) => {
+                console.log(result);
+                document.getElementById('output').innerText = result.text;
+            };
+
+            processor.start();
+
+            // غیرفعال کردن دکمه شروع و فعال کردن دکمه توقف
+            document.getElementById('startBtn').disabled = true;
+            document.getElementById('stopBtn').disabled = false;
         });
-        await recognizer.load();
-        document.getElementById("startRecognition").disabled = false;
-        alert("مدل با موفقیت بارگذاری شد!");
-    });
-    
-    document.getElementById("startRecognition").addEventListener("click", async function() {
-        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-        const audioContext = new AudioContext();
-        const source = audioContext.createMediaStreamSource(stream);
-        const processor = audioContext.createScriptProcessor(4096, 1, 1);
-        
-        source.connect(processor);
-        processor.connect(audioContext.destination);
-        
-        processor.onaudioprocess = function(event) {
-            const inputData = event.inputBuffer.getChannelData(0);
-            const int16Array = new Int16Array(inputData.length);
-            for (let i = 0; i < inputData.length; i++) {
-                int16Array[i] = inputData[i] * 32767;
+
+        document.getElementById('stopBtn').addEventListener('click', () => {
+            if (recognizer) {
+                recognizer.free();
+                recognizer = null;
             }
-            
-            const result = recognizer.acceptWaveform(int16Array);
-            if (result) {
-                document.getElementById("result").textContent = "متن تشخیص داده شده: " + recognizer.result();
-            }
-        };
-        alert("تشخیص گفتار شروع شد!");
-    });
-</script>
+            document.getElementById('startBtn').disabled = false;
+            document.getElementById('stopBtn').disabled = true;
+            document.getElementById('output').innerText = 'تشخیص متوقف شد.';
+        });
+    </script>
 
 </body>
 </html>
