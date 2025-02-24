@@ -3,74 +3,41 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>تشخیص صدا با Vosk</title>
+    <title>جستجو در ویکی‌پدیا</title>
     <style>
-        body {
-            font-family: 'IRANSans', Tahoma, sans-serif;
-            direction: rtl;
-            text-align: center;
-            margin-top: 50px;
-        }
-        #output {
-            margin-top: 20px;
-            font-size: 18px;
-            color: #333;
-        }
+        body { font-family: Arial, sans-serif; text-align: center; direction: rtl; }
+        input { padding: 10px; width: 300px; margin: 10px; }
+        button { padding: 10px; cursor: pointer; }
+        #result { margin-top: 20px; text-align: justify; }
     </style>
 </head>
 <body>
+    <h2>جستجو در ویکی‌پدیا</h2>
+    <input type="text" id="searchInput" placeholder="یک نام وارد کنید...">
+    <button onclick="searchWikipedia()">جستجو</button>
+    <div id="result"></div>
 
-    <h1>تشخیص صدا با مدل فارسی Vosk</h1>
-    <button id="startBtn">شروع تشخیص</button>
-    <button id="stopBtn" disabled>توقف</button>
-    <div id="output">متن تشخیص‌شده اینجا نمایش داده می‌شود...</div>
-
-    <!-- لینک به کتابخانه Vosk -->
-    <script src="https://cdn.jsdelivr.net/npm/@alphacep/vosk-browser@latest/vosk.js"></script>
     <script>
-        let recognizer = null;
-        let speechRecognition = null;
-
-        document.getElementById('startBtn').addEventListener('click', async () => {
-            if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-                alert('مرورگر شما از ویژگی‌های ضروری پشتیبانی نمی‌کند.');
+        function searchWikipedia() {
+            let query = document.getElementById("searchInput").value;
+            if (!query) {
+                alert("لطفا یک نام وارد کنید!");
                 return;
             }
 
-            // دریافت دسترسی به میکروفون
-            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-            const audioContext = new AudioContext();
-            const audioSource = audioContext.createMediaStreamSource(stream);
+            let url = `https://fa.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(query)}`;
 
-            // ایجاد مودل و تشخیص‌کننده
-            const modelUrl = 'vosk-model-small-fa-0.5'; // مسیر مدل فارسی
-            const model = new Vosk.Model(modelUrl);
-            recognizer = new Vosk.Recognizer(model, 16000); // فرکانس نمونه‌برداری 16 kHz
-
-            // پردازش صدا
-            const processor = new Vosk.AudioProcessor(recognizer, audioSource, 16000);
-            processor.onresult = (result) => {
-                console.log(result);
-                document.getElementById('output').innerText = result.text;
-            };
-
-            processor.start();
-
-            // غیرفعال کردن دکمه شروع و فعال کردن دکمه توقف
-            document.getElementById('startBtn').disabled = true;
-            document.getElementById('stopBtn').disabled = false;
-        });
-
-        document.getElementById('stopBtn').addEventListener('click', () => {
-            if (recognizer) {
-                recognizer.free();
-                recognizer = null;
-            }
-            document.getElementById('startBtn').disabled = false;
-            document.getElementById('stopBtn').disabled = true;
-            document.getElementById('output').innerText = 'تشخیص متوقف شد.';
-        });
+            fetch(url)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.extract) {
+                        document.getElementById("result").innerHTML = `<h3>${data.title}</h3><p>${data.extract}</p>`;
+                    } else {
+                        document.getElementById("result").innerHTML = "<p>متنی یافت نشد!</p>";
+                    }
+                })
+                .catch(error => console.error("خطا در دریافت اطلاعات:", error));
+        }
     </script>
-
 </body>
 </html>
