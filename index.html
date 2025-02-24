@@ -1,76 +1,42 @@
-<!DOCTYPE html>
-<html lang="fa">
+<!DOCTYPE html><html lang="fa">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>صداشناسی آفلاین با Vosk</title>
-    <script src="vosk-browser.js"></script>
+    <title>تبدیل گفتار به متن</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/vosk-browser/0.0.1/vosk.js"></script>
+    <style>
+        body { font-family: Arial, sans-serif; text-align: center; padding: 20px; }
+        button { font-size: 18px; padding: 10px; }
+        #result { margin-top: 20px; font-size: 20px; }
+    </style>
 </head>
 <body>
-    <h1>ضبط صدا برای شناسایی کلمات با Vosk</h1>
-    <button id="start-btn">شروع ضبط</button>
-    <button id="stop-btn" disabled>اتمام ضبط</button>
-    <div>
-        <h3>نتیجه شناسایی:</h3>
-        <pre id="result"></pre>
-    </div>
+    <h1>تبدیل گفتار به متن با Vosk</h1>
+    <button id="startBtn">شروع ضبط</button>
+    <button id="stopBtn" disabled>توقف ضبط</button>
+    <p id="result">...</p><script>
+    let recognizer;
+    async function initRecognizer() {
+        recognizer = new vosk.Recognizer({ modelPath: "https://alphacephei.com/vosk/models/vosk-model-small-fa-0.4.zip" });
+        await recognizer.initialize();
+    }
 
-    <script>
-        const startBtn = document.getElementById('start-btn');
-        const stopBtn = document.getElementById('stop-btn');
-        const resultElement = document.getElementById('result');
-        let recognizer = null;
-        let recorder = null;
-        let audioChunks = [];
-
-        // بارگذاری مدل Vosk
-        async function loadModel() {
-            try {
-                recognizer = await Vosk.createRecognizer('model'); // مسیری به مدل خود را بدهید
-                console.log('Model loaded');
-            } catch (e) {
-                console.error('Error loading model', e);
-            }
-        }
-
-        // شروع ضبط صدا
-        startBtn.onclick = async () => {
-            if (!recognizer) {
-                await loadModel();
-            }
-
-            navigator.mediaDevices.getUserMedia({ audio: true })
-                .then(stream => {
-                    recorder = new MediaRecorder(stream);
-                    recorder.ondataavailable = (event) => {
-                        audioChunks.push(event.data);
-                    };
-                    recorder.onstop = () => {
-                        const audioBlob = new Blob(audioChunks, { type: 'audio/wav' });
-                        const reader = new FileReader();
-                        reader.onload = () => {
-                            const buffer = reader.result;
-                            const audioData = new Int16Array(buffer);
-                            const result = recognizer.acceptWaveform(audioData);
-                            if (result) {
-                                const resultObj = JSON.parse(result);
-                                resultElement.textContent = resultObj.text;
-                            }
-                        };
-                        reader.readAsArrayBuffer(audioBlob);
-                    };
-                    recorder.start();
-                    startBtn.disabled = true;
-                    stopBtn.disabled = false;
-                });
+    document.getElementById("startBtn").addEventListener("click", async () => {
+        if (!recognizer) await initRecognizer();
+        recognizer.start();
+        document.getElementById("startBtn").disabled = true;
+        document.getElementById("stopBtn").disabled = false;
+        recognizer.onResult = (result) => {
+            document.getElementById("result").innerText = result.text;
         };
+    });
 
-        // توقف ضبط
-        stopBtn.onclick = () => {
-            recorder.stop();
-            startBtn.disabled = false;
-            stopBtn.disabled = true;
-        };
-    </script>
+    document.getElementById("stopBtn").addEventListener("click", () => {
+        recognizer.stop();
+        document.getElementById("startBtn").disabled = false;
+        document.getElementById("stopBtn").disabled = true;
+    });
+</script>
+
 </body>
 </html>
