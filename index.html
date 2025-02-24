@@ -1,126 +1,48 @@
-<!DOCTYPE html>
-<html lang="fa">
+<!DOCTYPE html><html lang="fa">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>تشخیص صدا با Vosk</title>
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            margin: 0;
-            padding: 0;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            height: 100vh;
-            background-color: #f4f4f9;
-        }
-        .container {
-            text-align: center;
-            background: #fff;
-            padding: 20px 30px;
-            border-radius: 10px;
-            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
-        }
-        h1 {
-            margin-bottom: 20px;
-            color: #333;
-        }
-        button {
-            padding: 10px 20px;
-            font-size: 16px;
-            color: #fff;
-            background-color: #007bff;
-            border: none;
-            border-radius: 5px;
-            cursor: pointer;
-        }
-        button:hover {
-            background-color: #0056b3;
-        }
-        #transcription {
-            margin-top: 20px;
-            height: 100px;
-            width: 100%;
-            border: 1px solid #ccc;
-            border-radius: 5px;
-            padding: 10px;
-            font-size: 14px;
-            resize: none;
-        }
-    </style>
+    <title>Vosk Offline Speech Recognition</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/vosk/0.3.32/vosk.js"></script>
 </head>
 <body>
-
-<div class="container">
-    <h1>تشخیص صدا به متن</h1>
-    <button id="startButton">شروع / متوقف کردن</button>
-    <textarea id="transcription" placeholder="متن تشخیص داده شده اینجا نمایش داده می‌شود..." readonly></textarea>
-</div>
-
-<script src="https://unpkg.com/@vosk/browser@0.3.25"></script>
-<script>
-    let model = null;
-    let recognizer = null;
-    let audioStream = null;
-    let isListening = false;
-
-    const startButton = document.getElementById('startButton');
-    const transcription = document.getElementById('transcription');
-
-    // بارگذاری مدل Vosk
-    async function loadModel() {
-        if (!model) {
-            model = await vosk.Model('https://models.vosk-api.org/fa'); // مدل فارسی
-            recognizer = new vosk.Recognizer({ model: model, sampleRate: 16000 });
-        }
-    }
-
-    // شروع گوش دادن
-    async function startListening() {
-        if (!isListening) {
-            await loadModel();
-            audioStream = await navigator.mediaDevices.getUserMedia({ audio: true });
-            const audioContext = new AudioContext();
-            const source = audioContext.createMediaStreamSource(audioStream);
-
-            const processor = audioContext.createScriptProcessor(2048, 1, 1);
-            source.connect(processor);
-            processor.connect(audioContext.destination);
-
-            processor.onaudioprocess = event => {
-                const input = event.inputBuffer.getChannelData(0);
-                recognizer.acceptWaveForm(new Float32Array(input));
-                const result = recognizer.result();
-                if (result) {
-                    transcription.value = result.text;
-                }
-            };
-
-            isListening = true;
-            startButton.textContent = 'متوقف کردن';
-        } else {
-            stopListening();
-        }
-    }
-
-    // متوقف کردن گوش دادن
-    function stopListening() {
-        if (audioStream) {
-            audioStream.getTracks().forEach(track => track.stop());
-            audioStream = null;
-        }
-        isListening = false;
-        startButton.textContent = 'شروع';
-    }
-
-    // رویداد کلیک دکمه
-    startButton.addEventListener('click', () => {
-        if (isListening) {
-            stopListening();
-        } else {
-            startListening();
-        }
+    <button id="loadModel">لود مدل</button>
+    <button id="startRecognition" disabled>شروع تشخیص</button>
+    <p id="result">متن تشخیص داده شده: </p><script>
+    let recognizer;
+    document.getElementById("loadModel").addEventListener("click", async function() {
+        const modelURL = "https://alphacephei.com/vosk/models/vosk-model-small-fa-0.5.zip";
+        recognizer = new vosk.Recognizer({
+            modelPath: modelURL,
+            sampleRate: 16000
+        });
+        await recognizer.load();
+        document.getElementById("startRecognition").disabled = false;
+        alert("مدل با موفقیت بارگذاری شد!");
+    });
+    
+    document.getElementById("startRecognition").addEventListener("click", async function() {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        const audioContext = new AudioContext();
+        const source = audioContext.createMediaStreamSource(stream);
+        const processor = audioContext.createScriptProcessor(4096, 1, 1);
+        
+        source.connect(processor);
+        processor.connect(audioContext.destination);
+        
+        processor.onaudioprocess = function(event) {
+            const inputData = event.inputBuffer.getChannelData(0);
+            const int16Array = new Int16Array(inputData.length);
+            for (let i = 0; i < inputData.length; i++) {
+                int16Array[i] = inputData[i] * 32767;
+            }
+            
+            const result = recognizer.acceptWaveform(int16Array);
+            if (result) {
+                document.getElementById("result").textContent = "متن تشخیص داده شده: " + recognizer.result();
+            }
+        };
+        alert("تشخیص گفتار شروع شد!");
     });
 </script>
 
