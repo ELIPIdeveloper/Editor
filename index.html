@@ -3,105 +3,97 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>تشخیص رگ‌های دست</title>
+    <title>گرفتن عکس و افزایش کیفیت</title>
     <style>
-        body {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            height: 100vh;
-            margin: 0;
-            font-family: Arial, sans-serif;
-        }
         video {
-            border: 2px solid #000;
-            max-width: 640px;
+            max-width: 100%;
+            border: 2px solid #ccc;
         }
         canvas {
-            position: absolute;
-            pointer-events: none;
+            display: none;
         }
-        .info {
+        img {
+            max-width: 100%;
             margin-top: 20px;
-            font-size: 18px;
-            color: #333;
         }
     </style>
 </head>
 <body>
-    <h1>تشخیص رگ‌های دست برای آنژیوکت</h1>
-    <video id="video" autoplay playsinline></video>
-    <canvas id="canvas"></canvas>
-    <div class="info">لطفاً دست خود را در مقابل دوربین قرار دهید.</div>
+    <h1>گرفتن عکس و افزایش کیفیت با TensorFlow.js</h1>
+    <video id="cameraStream" autoplay playsinline></video>
+    <br><br>
+    <button onclick="takePhoto()">گرفتن عکس</button>
+    <button onclick="enhanceAndDownload()">افزایش کیفیت و دانلود</button>
+    <canvas id="hiddenCanvas"></canvas>
+    <img id="photoPreview" alt="عکس گرفته شده">
 
+    <!-- لود کتابخانه TensorFlow.js -->
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@3.15.0/dist/tf.min.js"></script>
     <script>
-        const video = document.getElementById('video');
-        const canvas = document.getElementById('canvas');
-        const ctx = canvas.getContext('2d');
+        const video = document.getElementById('cameraStream');
+        const canvas = document.getElementById('hiddenCanvas');
+        const photoPreview = document.getElementById('photoPreview');
 
-        // درخواست دسترسی به دوربین پشت
-        async function startCamera() {
-            try {
-                const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
+        // دسترسی به دوربین
+        navigator.mediaDevices.getUserMedia({ video: true })
+            .then(stream => {
                 video.srcObject = stream;
-                video.onloadedmetadata = () => {
-                    canvas.width = video.videoWidth;
-                    canvas.height = video.videoHeight;
-                    processVideo();
-                };
-            } catch (error) {
-                console.error('خطا در دسترسی به دوربین:', error);
-            }
+            })
+            .catch(error => {
+                console.error("خطا در دسترسی به دوربین:", error);
+            });
+
+        // گرفتن عکس
+        function takePhoto() {
+            const context = canvas.getContext('2d');
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+
+            // نقاشی تصویر دوربین روی canvas
+            context.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+            // نمایش عکس گرفته شده
+            photoPreview.src = canvas.toDataURL('image/png');
         }
 
-        // پردازش تصویر به صورت زنده
-        function processVideo() {
-            if (video.readyState === video.HAVE_ENOUGH_DATA) {
-                ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-
-                // پردازش تصویر (تشخیص رگ‌ها)
-                detectVeins(ctx);
-            }
-            requestAnimationFrame(processVideo);
-        }
-
-        // تابع تشخیص رگ‌ها (الگوریتم ساده)
-        function detectVeins(ctx) {
-            const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-            const data = imageData.data;
-
-            // فیلتر ساده برای تشخیص رگ‌ها (با توجه به رنگ‌های تیره)
-            for (let i = 0; i < data.length; i += 4) {
-                const r = data[i];
-                const g = data[i + 1];
-                const b = data[i + 2];
-
-                // تشخیص رگ‌ها بر اساس رنگ‌های تیره
-                if (r < 50 && g < 50 && b < 50) {
-                    data[i] = 0; // قرمز
-                    data[i + 1] = 255; // سبز (برای نشان دادن رگ‌ها)
-                    data[i + 2] = 0; // آبی
-                } else {
-                    data[i] = r;
-                    data[i + 1] = g;
-                    data[i + 2] = b;
-                }
+        // افزایش کیفیت تصویر با TensorFlow.js
+        async function enhanceAndDownload() {
+            if (!photoPreview.src) {
+                alert("ابتدا یک عکس بگیرید!");
+                return;
             }
 
+            // لود مدل Super Resolution (SR)
+            const modelUrl = 'https://tfhub.dev/google/lite-model/aiy/vision/quality enhancement/sr3dfp/1?lite-format=tflite';
+            const model = await tf.loadGraphModel(modelUrl);
+
+            // تبدیل عکس به Tensor
+            const tensor = tf.browser.fromPixels(canvas).resizeNearestNeighbor([canvas.height * 3, canvas.width * 3]);
+
+            // اجرای مدل بر روی تصویر
+            const enhancedTensor = model.execute(tensor);
+
+            // تبدیل خروجی مدل به Canvas
+            const enhancedCanvas = document.createElement('canvas');
+            enhancedCanvas.width = enhancedTensor.shape[1];
+            enhancedCanvas.height = enhancedTensor.shape[2];
+            const ctx = enhancedCanvas.getContext('2d');
+            const imageData = new ImageData(await enhancedTensor.data(), enhancedTensor.shape[1], enhancedTensor.shape[2]);
             ctx.putImageData(imageData, 0, 0);
 
-            // نمایش بهترین رگ با رنگ متفاوت
-            ctx.strokeStyle = 'red';
-            ctx.lineWidth = 3;
-            ctx.beginPath();
-            ctx.moveTo(canvas.width / 2 - 50, canvas.height / 2); // مثال: خطی را رسم می‌کنیم
-            ctx.lineTo(canvas.width / 2 + 50, canvas.height / 2);
-            ctx.stroke();
-        }
+            // نمایش تصویر پردازش‌شده
+            photoPreview.src = enhancedCanvas.toDataURL('image/png');
 
-        // شروع دوربین
-        startCamera();
+            // دانلود تصویر پردازش‌شده
+            const link = document.createElement('a');
+            link.href = photoPreview.src;
+            link.download = 'enhanced_photo.png';
+            link.click();
+
+            // حذف تنسورها از حافظه
+            tensor.dispose();
+            enhancedTensor.dispose();
+        }
     </script>
 </body>
 </html>
