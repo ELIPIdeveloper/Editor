@@ -1,94 +1,89 @@
 <!DOCTYPE html>
 <html lang="fa">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>حذف پس‌زمینه تصویر</title>
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            text-align: center;
-            background-color: #f4f4f4;
-            margin: 20px;
-        }
-        .container {
-            max-width: 400px;
-            margin: auto;
-            background: white;
-            padding: 20px;
-            border-radius: 10px;
-            box-shadow: 0px 0px 10px rgba(0, 0, 0, 0.1);
-        }
-        input, button {
-            margin: 10px 0;
-            padding: 10px;
-            width: 100%;
-            border: none;
-            border-radius: 5px;
-        }
-        button {
-            background: #28a745;
-            color: white;
-            cursor: pointer;
-        }
-        button:hover {
-            background: #218838;
-        }
-        img {
-            max-width: 100%;
-            margin-top: 10px;
-        }
-    </style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>دوربین زنده و شبیه‌سازی رگ‌ها</title>
+  <!-- بارگذاری OpenCV.js از CDN -->
+  <script async src="https://docs.opencv.org/master/opencv.js"></script>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      text-align: center;
+    }
+    #canvas {
+      display: block;
+      margin: 20px auto;
+    }
+    video {
+      border: 1px solid black;
+      margin-bottom: 10px;
+    }
+  </style>
 </head>
 <body>
 
-<div class="container">
-    <h2>حذف پس‌زمینه تصویر</h2>
-    <input type="file" id="fileInput" accept="image/*">
-    <button onclick="removeBackground()">حذف پس‌زمینه</button>
-    <p id="status"></p>
-    <img id="output" alt="تصویر پردازش‌شده" style="display:none;">
-</div>
+  <h1>دوربین زنده و شبیه‌سازی رگ‌ها</h1>
 
-<script>
-    async function removeBackground() {
-        const fileInput = document.getElementById("fileInput");
-        const output = document.getElementById("output");
-        const status = document.getElementById("status");
+  <!-- ویدیو نمایش دوربین -->
+  <video id="video" width="640" height="480" autoplay></video>
+  
+  <!-- بوم (Canvas) برای نمایش تصویر پردازش‌شده -->
+  <canvas id="canvas" width="640" height="480"></canvas>
 
-        if (fileInput.files.length === 0) {
-            alert("لطفاً یک تصویر انتخاب کنید!");
-            return;
-        }
+  <script>
+    // دسترسی به دوربین و نمایش آن در ویدیو
+    navigator.mediaDevices.getUserMedia({ video: true })
+      .then(function(stream) {
+        document.getElementById('video').srcObject = stream;
+      })
+      .catch(function(error) {
+        console.log("خطا در دسترسی به دوربین:", error);
+      });
 
-        status.textContent = "در حال پردازش...";
-        output.style.display = "none";
+    // زمانی که OpenCV.js بارگذاری شد، پردازش را آغاز می‌کنیم
+    function onOpenCvReady() {
+      let videoElement = document.getElementById('video');
+      let canvasElement = document.getElementById('canvas');
+      let ctx = canvasElement.getContext('2d');
 
-        const apiKey = "75a3439adcab430b9a89eed1baa3762d"; // کلید API خود را بگذارید
-        const formData = new FormData();
-        formData.append("image_file", fileInput.files[0]);
+      // تابع پردازش و شبیه‌سازی رگ‌ها
+      function processFrame() {
+        // گرفتن فریم از ویدیو و رسم آن در بوم (Canvas)
+        ctx.drawImage(videoElement, 0, 0, canvasElement.width, canvasElement.height);
 
-        try {
-            const response = await fetch("https://www.cutout.pro/api/v1/remove", {
-                method: "POST",
-                headers: { "APIKEY": apiKey },
-                body: formData
-            });
+        // تبدیل بوم به ماتریس OpenCV
+        let src = cv.imread(canvasElement);
+        let dst = new cv.Mat();
 
-            if (!response.ok) {
-                throw new Error("خطا در پردازش تصویر");
-            }
+        // تبدیل به خاکی (gray) برای پردازش بهتر
+        cv.cvtColor(src, src, cv.COLOR_RGBA2GRAY);
 
-            const data = await response.blob();
-            output.src = URL.createObjectURL(data);
-            output.style.display = "block";
-            status.textContent = "پردازش کامل شد!";
-        } catch (error) {
-            console.error("Error:", error);
-            status.textContent = "مشکلی پیش آمد. لطفاً دوباره تلاش کنید.";
-        }
+        // استفاده از فیلتر Canny برای تشخیص لبه‌ها (به طور ساده شبیه رگ‌ها)
+        cv.Canny(src, dst, 50, 100);
+
+        // نمایش نتیجه در بوم
+        cv.imshow(canvasElement, dst);
+
+        // آزادسازی منابع
+        src.delete();
+        dst.delete();
+
+        // درخواست پردازش فریم بعدی
+        requestAnimationFrame(processFrame);
+      }
+
+      // آغاز پردازش فریم‌ها
+      processFrame();
     }
-</script>
+
+    // زمانی که OpenCV.js بارگذاری شد
+    if (cv.getBuildInformation) {
+      onOpenCvReady();
+    } else {
+      console.log('OpenCV.js بارگذاری نشد');
+    }
+  </script>
 
 </body>
 </html>
