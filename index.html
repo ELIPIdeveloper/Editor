@@ -3,97 +3,144 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>گرفتن عکس و افزایش کیفیت</title>
+    <title>ماشین حساب</title>
     <style>
-        video {
-            max-width: 100%;
-            border: 2px solid #ccc;
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            background-color: black;
         }
-        canvas {
-            display: none;
+
+        .calculator {
+            width: 300px;
+            background-color: black;
+            padding: 20px;
+            border-radius: 20px;
+            box-shadow: 0px 0px 10px rgba(255, 255, 255, 0.2);
         }
-        img {
-            max-width: 100%;
-            margin-top: 20px;
+
+        .display {
+            width: 100%;
+            height: 80px;
+            background: black;
+            color: white;
+            text-align: right;
+            font-size: 2em;
+            border: none;
+            outline: none;
+            padding: 10px;
+            direction: ltr;
+        }
+
+        .buttons {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 10px;
+            margin-top: 10px;
+        }
+
+        button {
+            width: 100%;
+            height: 60px;
+            font-size: 1.5em;
+            border: none;
+            border-radius: 50%;
+            cursor: pointer;
+            transition: 0.2s;
+        }
+
+        .gray { background-color: #a5a5a5; color: black; }
+        .dark { background-color: #333; color: white; }
+        .orange { background-color: #ff9500; color: white; }
+
+        button:active {
+            transform: scale(0.95);
+        }
+
+        .zero {
+            grid-column: span 2;
+            border-radius: 30px;
+            text-align: left;
+            padding-left: 30px;
         }
     </style>
 </head>
 <body>
-    <h1>گرفتن عکس و افزایش کیفیت با TensorFlow.js</h1>
-    <video id="cameraStream" autoplay playsinline></video>
-    <br><br>
-    <button onclick="takePhoto()">گرفتن عکس</button>
-    <button onclick="enhanceAndDownload()">افزایش کیفیت و دانلود</button>
-    <canvas id="hiddenCanvas"></canvas>
-    <img id="photoPreview" alt="عکس گرفته شده">
 
-    <!-- لود کتابخانه TensorFlow.js -->
-    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@3.15.0/dist/tf.min.js"></script>
+    <div class="calculator">
+        <input type="text" class="display" id="display" disabled>
+        <div class="buttons">
+            <button class="gray" onclick="clearDisplay()">AC</button>
+            <button class="gray" onclick="toggleSign()">+/-</button>
+            <button class="gray" onclick="percentage()">%</button>
+            <button class="orange" onclick="appendOperator('/')">÷</button>
+
+            <button class="dark" onclick="appendNumber(7)">7</button>
+            <button class="dark" onclick="appendNumber(8)">8</button>
+            <button class="dark" onclick="appendNumber(9)">9</button>
+            <button class="orange" onclick="appendOperator('*')">×</button>
+
+            <button class="dark" onclick="appendNumber(4)">4</button>
+            <button class="dark" onclick="appendNumber(5)">5</button>
+            <button class="dark" onclick="appendNumber(6)">6</button>
+            <button class="orange" onclick="appendOperator('-')">−</button>
+
+            <button class="dark" onclick="appendNumber(1)">1</button>
+            <button class="dark" onclick="appendNumber(2)">2</button>
+            <button class="dark" onclick="appendNumber(3)">3</button>
+            <button class="orange" onclick="appendOperator('+')">+</button>
+
+            <button class="dark zero" onclick="appendNumber(0)">0</button>
+            <button class="dark" onclick="appendDot()">.</button>
+            <button class="orange" onclick="calculateResult()">=</button>
+        </div>
+    </div>
+
     <script>
-        const video = document.getElementById('cameraStream');
-        const canvas = document.getElementById('hiddenCanvas');
-        const photoPreview = document.getElementById('photoPreview');
+        let display = document.getElementById("display");
 
-        // دسترسی به دوربین
-        navigator.mediaDevices.getUserMedia({ video: true })
-            .then(stream => {
-                video.srcObject = stream;
-            })
-            .catch(error => {
-                console.error("خطا در دسترسی به دوربین:", error);
-            });
-
-        // گرفتن عکس
-        function takePhoto() {
-            const context = canvas.getContext('2d');
-            canvas.width = video.videoWidth;
-            canvas.height = video.videoHeight;
-
-            // نقاشی تصویر دوربین روی canvas
-            context.drawImage(video, 0, 0, canvas.width, canvas.height);
-
-            // نمایش عکس گرفته شده
-            photoPreview.src = canvas.toDataURL('image/png');
+        function appendNumber(number) {
+            display.value += number;
         }
 
-        // افزایش کیفیت تصویر با TensorFlow.js
-        async function enhanceAndDownload() {
-            if (!photoPreview.src) {
-                alert("ابتدا یک عکس بگیرید!");
-                return;
+        function appendOperator(operator) {
+            let lastChar = display.value[display.value.length - 1];
+            if (lastChar && "+-*/".includes(lastChar)) return;
+            display.value += operator;
+        }
+
+        function appendDot() {
+            if (!display.value.includes(".")) {
+                display.value += ".";
             }
+        }
 
-            // لود مدل Super Resolution (SR)
-            const modelUrl = 'https://tfhub.dev/google/lite-model/aiy/vision/quality enhancement/sr3dfp/1?lite-format=tflite';
-            const model = await tf.loadGraphModel(modelUrl);
+        function clearDisplay() {
+            display.value = "";
+        }
 
-            // تبدیل عکس به Tensor
-            const tensor = tf.browser.fromPixels(canvas).resizeNearestNeighbor([canvas.height * 3, canvas.width * 3]);
+        function toggleSign() {
+            if (display.value) {
+                display.value = parseFloat(display.value) * -1;
+            }
+        }
 
-            // اجرای مدل بر روی تصویر
-            const enhancedTensor = model.execute(tensor);
+        function percentage() {
+            if (display.value) {
+                display.value = parseFloat(display.value) / 100;
+            }
+        }
 
-            // تبدیل خروجی مدل به Canvas
-            const enhancedCanvas = document.createElement('canvas');
-            enhancedCanvas.width = enhancedTensor.shape[1];
-            enhancedCanvas.height = enhancedTensor.shape[2];
-            const ctx = enhancedCanvas.getContext('2d');
-            const imageData = new ImageData(await enhancedTensor.data(), enhancedTensor.shape[1], enhancedTensor.shape[2]);
-            ctx.putImageData(imageData, 0, 0);
-
-            // نمایش تصویر پردازش‌شده
-            photoPreview.src = enhancedCanvas.toDataURL('image/png');
-
-            // دانلود تصویر پردازش‌شده
-            const link = document.createElement('a');
-            link.href = photoPreview.src;
-            link.download = 'enhanced_photo.png';
-            link.click();
-
-            // حذف تنسورها از حافظه
-            tensor.dispose();
-            enhancedTensor.dispose();
+        function calculateResult() {
+            try {
+                display.value = eval(display.value);
+            } catch {
+                display.value = "Error";
+            }
         }
     </script>
+
 </body>
 </html>
