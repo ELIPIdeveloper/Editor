@@ -6,30 +6,87 @@
     <title>استخراج متن از تصویر</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/tesseract.js/4.0.2/tesseract.min.js"></script>
     <style>
-        body { font-family: Arial, sans-serif; text-align: center; padding: 20px; direction: rtl; }
-        #output { margin-top: 20px; padding: 10px; border: 1px solid #ccc; min-height: 100px; white-space: pre-wrap; }
+        body { font-family: Arial, sans-serif; text-align: center; direction: rtl; }
+        #canvasContainer { position: relative; display: inline-block; }
+        canvas { border: 1px solid #ccc; }
+        .highlight { position: absolute; background: rgba(255, 255, 0, 0.5); cursor: pointer; }
     </style>
 </head>
 <body>
-    <h2>استخراج متن از تصویر (آفلاین)</h2>
+    <h2>استخراج متن از تصویر و نمایش روی آن</h2>
     <input type="file" id="fileInput" accept="image/*">
+    <select id="languageSelect">
+        <option value="eng">انگلیسی</option>
+        <option value="fas">فارسی</option>
+        <option value="ara">عربی</option>
+        <option value="rus">روسی</option>
+        <option value="jpn">ژاپنی</option>
+        <option value="multi">همه زبان‌ها (کندتر)</option>
+    </select>
+    <div id="canvasContainer">
+        <canvas id="imageCanvas"></canvas>
+    </div>
     <div id="output">متن استخراج شده اینجا نمایش داده می‌شود...</div>
 
     <script>
-        document.getElementById('fileInput').addEventListener('change', function(event) {
+        const fileInput = document.getElementById('fileInput');
+        const languageSelect = document.getElementById('languageSelect');
+        const canvas = document.getElementById('imageCanvas');
+        const ctx = canvas.getContext('2d');
+        const outputDiv = document.getElementById('output');
+        const container = document.getElementById('canvasContainer');
+
+        fileInput.addEventListener('change', function(event) {
             const file = event.target.files[0];
             if (!file) return;
 
             const reader = new FileReader();
             reader.onload = function() {
-                Tesseract.recognize(reader.result, 'fas') // برای فارسی 'fas'، برای انگلیسی 'eng'
-                    .then(({ data: { text } }) => {
-                        document.getElementById('output').innerText = text;
-                    })
-                    .catch(error => console.error('خطا در پردازش تصویر:', error));
+                const img = new Image();
+                img.onload = function() {
+                    canvas.width = img.width / 2;
+                    canvas.height = img.height / 2;
+                    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+
+                    // شناسایی متن
+                    processImage(canvas, languageSelect.value);
+                };
+                img.src = reader.result;
             };
             reader.readAsDataURL(file);
         });
+
+        function processImage(canvas, lang) {
+            let langCode = lang === "multi" ? "eng+fas+ara+rus+jpn" : lang;
+
+            Tesseract.recognize(canvas, langCode, {
+                logger: m => console.log(m)
+            }).then(({ data: { text, words } }) => {
+                outputDiv.innerText = text; // نمایش کل متن استخراج‌شده
+                drawBoxes(words);
+            }).catch(error => console.error('خطا در پردازش تصویر:', error));
+        }
+
+        function drawBoxes(words) {
+            words.forEach(word => {
+                const { x0, y0, x1, y1 } = word.bbox;
+                const width = (x1 - x0) / 2;
+                const height = (y1 - y0) / 2;
+
+                const div = document.createElement('div');
+                div.className = 'highlight';
+                div.style.left = `${x0 / 2}px`;
+                div.style.top = `${y0 / 2}px`;
+                div.style.width = `${width}px`;
+                div.style.height = `${height}px`;
+
+                div.addEventListener('click', () => {
+                    alert(`متن انتخاب‌شده: ${word.text}`);
+                });
+
+                container.appendChild(div);
+            });
+        }
     </script>
 </body>
 </html>
