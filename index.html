@@ -3,90 +3,101 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>حذف پس‌زمینه عکس بدون API</title>
+    <title>پاک کردن عکس با قلم</title>
     <style>
-        body {
-            font-family: Arial, sans-serif;
-            text-align: center;
-            margin: 20px;
-        }
-        #result {
-            margin-top: 20px;
+        canvas {
+            border: 2px solid black;
+            display: block;
+            margin: 20px auto;
+            max-width: 100%;
         }
     </style>
 </head>
 <body>
-    <h1>آپلود عکس و حذف پس‌زمینه</h1>
-    <input type="file" id="imageUpload" accept="image/*">
-    <div id="result"></div>
 
-    <!-- اضافه کردن کتابخانه ML5.js -->
-    <script src="https://cdn.jsdelivr.net/npm/ml5@latest/dist/ml5.min.js"></script>
+    <h1>پاک کردن قسمتی از تصویر با قلم</h1>
+
+    <!-- کانواس برای نمایش و ویرایش تصویر -->
+    <canvas id="imageCanvas"></canvas>
+
     <script>
-        let segmenter;
+        // تابع برای بارگذاری تصویر روی کانواس
+        function loadImageToCanvas() {
+            const canvas = document.getElementById('imageCanvas');
+            const ctx = canvas.getContext('2d');
 
-        document.getElementById('imageUpload').addEventListener('change', function(event) {
-            const file = event.target.files[0];
-            if (!file) return;
-
-            const reader = new FileReader();
-            reader.onload = function(e) {
-                const imgElement = document.createElement('img');
-                imgElement.src = e.target.result;
-
-                // انتظار بارگذاری عکس
-                imgElement.onload = function() {
-                    if (!segmenter) {
-                        // بارگذاری مدل Segmenter
-                        segmenter = ml5.segmenter('bodyPix', modelReady);
-                    } else {
-                        processImage(imgElement);
-                    }
-                };
+            // تنظیم اندازه کانواس
+            const img = new Image();
+            img.src = 'https://via.placeholder.com/500'; // جایگزین کنید با URL تصویر مورد نظر
+            img.onload = function () {
+                canvas.width = img.width;
+                canvas.height = img.height;
+                ctx.drawImage(img, 0, 0);
             };
-            reader.readAsDataURL(file);
-        });
-
-        function modelReady() {
-            console.log('مدل آماده است.');
         }
 
-        function processImage(image) {
-            segmenter.segment(image, { outputStride: 16 }, (err, result) => {
-                if (err) {
-                    console.error('خطا در پردازش عکس:', err);
-                    alert('خطا در پردازش عکس.');
-                    return;
+        // تابع برای پاک کردن قسمتی از تصویر
+        function setupEraser() {
+            const canvas = document.getElementById('imageCanvas');
+            const ctx = canvas.getContext('2d');
+
+            let isDrawing = false;
+
+            // تنظیمات قلم پاک‌کن
+            ctx.strokeStyle = 'rgba(255, 255, 255, 1)'; // رنگ سفید برای پاک کردن
+            ctx.lineWidth = 20; // ضخامت قلم
+            ctx.lineCap = 'round';
+            ctx.lineJoin = 'round';
+
+            // رویداد شروع کشیدن
+            canvas.addEventListener('mousedown', (e) => {
+                isDrawing = true;
+                ctx.beginPath();
+                ctx.moveTo(e.offsetX, e.offsetY);
+            });
+
+            // رویداد ادامه کشیدن
+            canvas.addEventListener('mousemove', (e) => {
+                if (isDrawing) {
+                    ctx.lineTo(e.offsetX, e.offsetY);
+                    ctx.stroke();
                 }
+            });
 
-                // ایجاد یک canvas برای نمایش نتیجه
-                const canvas = document.createElement('canvas');
-                canvas.width = image.width;
-                canvas.height = image.height;
-                const ctx = canvas.getContext('2d');
+            // رویداد پایان کشیدن
+            canvas.addEventListener('mouseup', () => {
+                isDrawing = false;
+            });
 
-                // نگهداری تنها قسمت مربوط به بدن
-                for (let y = 0; y < result.data.length; y += 4) {
-                    if (result.data[y + 3] > 128) {
-                        result.data[y + 3] = 255; // بخش مربوط به بدن
-                    } else {
-                        result.data[y + 3] = 0; // بخش مربوط به پس‌زمینه
-                    }
+            // پشتیبانی از لمس (اختیاری)
+            canvas.addEventListener('touchstart', (e) => {
+                e.preventDefault();
+                isDrawing = true;
+                const touch = e.touches[0];
+                ctx.beginPath();
+                ctx.moveTo(touch.clientX - canvas.offsetLeft, touch.clientY - canvas.offsetTop);
+            });
+
+            canvas.addEventListener('touchmove', (e) => {
+                e.preventDefault();
+                if (isDrawing) {
+                    const touch = e.touches[0];
+                    ctx.lineTo(touch.clientX - canvas.offsetLeft, touch.clientY - canvas.offsetTop);
+                    ctx.stroke();
                 }
+            });
 
-                const maskImage = new ImageData(new Uint8ClampedArray(result.data), image.width, image.height);
-                ctx.putImageData(maskImage, 0, 0);
-
-                // ترکیب عکس اصلی و ماسک
-                ctx.globalCompositeOperation = 'source-in';
-                ctx.drawImage(image, 0, 0);
-
-                // نمایش نتیجه
-                const resultDiv = document.getElementById('result');
-                resultDiv.innerHTML = `<canvas style="border: 1px solid black;" width="${canvas.width}" height="${canvas.height}"></canvas>`;
-                resultDiv.querySelector('canvas').getContext('2d').drawImage(canvas, 0, 0);
+            canvas.addEventListener('touchend', () => {
+                isDrawing = false;
             });
         }
+
+        // بارگذاری تصویر و تنظیم پاک‌کن
+        window.onload = function () {
+            loadImageToCanvas();
+            setupEraser();
+        };
     </script>
+
 </body>
 </html>
