@@ -3,144 +3,33 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ماشین حساب</title>
+    <title>استخراج متن از تصویر</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tesseract.js/4.0.2/tesseract.min.js"></script>
     <style>
-        body {
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            height: 100vh;
-            background-color: black;
-        }
-
-        .calculator {
-            width: 300px;
-            background-color: black;
-            padding: 20px;
-            border-radius: 20px;
-            box-shadow: 0px 0px 10px rgba(255, 255, 255, 0.2);
-        }
-
-        .display {
-            width: 100%;
-            height: 80px;
-            background: black;
-            color: white;
-            text-align: right;
-            font-size: 2em;
-            border: none;
-            outline: none;
-            padding: 10px;
-            direction: ltr;
-        }
-
-        .buttons {
-            display: grid;
-            grid-template-columns: repeat(4, 1fr);
-            gap: 10px;
-            margin-top: 10px;
-        }
-
-        button {
-            width: 100%;
-            height: 60px;
-            font-size: 1.5em;
-            border: none;
-            border-radius: 50%;
-            cursor: pointer;
-            transition: 0.2s;
-        }
-
-        .gray { background-color: #a5a5a5; color: black; }
-        .dark { background-color: #333; color: white; }
-        .orange { background-color: #ff9500; color: white; }
-
-        button:active {
-            transform: scale(0.95);
-        }
-
-        .zero {
-            grid-column: span 2;
-            border-radius: 30px;
-            text-align: left;
-            padding-left: 30px;
-        }
+        body { font-family: Arial, sans-serif; text-align: center; padding: 20px; direction: rtl; }
+        #output { margin-top: 20px; padding: 10px; border: 1px solid #ccc; min-height: 100px; white-space: pre-wrap; }
     </style>
 </head>
 <body>
-
-    <div class="calculator">
-        <input type="text" class="display" id="display" disabled>
-        <div class="buttons">
-            <button class="gray" onclick="clearDisplay()">AC</button>
-            <button class="gray" onclick="toggleSign()">+/-</button>
-            <button class="gray" onclick="percentage()">%</button>
-            <button class="orange" onclick="appendOperator('/')">÷</button>
-
-            <button class="dark" onclick="appendNumber(7)">7</button>
-            <button class="dark" onclick="appendNumber(8)">8</button>
-            <button class="dark" onclick="appendNumber(9)">9</button>
-            <button class="orange" onclick="appendOperator('*')">×</button>
-
-            <button class="dark" onclick="appendNumber(4)">4</button>
-            <button class="dark" onclick="appendNumber(5)">5</button>
-            <button class="dark" onclick="appendNumber(6)">6</button>
-            <button class="orange" onclick="appendOperator('-')">−</button>
-
-            <button class="dark" onclick="appendNumber(1)">1</button>
-            <button class="dark" onclick="appendNumber(2)">2</button>
-            <button class="dark" onclick="appendNumber(3)">3</button>
-            <button class="orange" onclick="appendOperator('+')">+</button>
-
-            <button class="dark zero" onclick="appendNumber(0)">0</button>
-            <button class="dark" onclick="appendDot()">.</button>
-            <button class="orange" onclick="calculateResult()">=</button>
-        </div>
-    </div>
+    <h2>استخراج متن از تصویر (آفلاین)</h2>
+    <input type="file" id="fileInput" accept="image/*">
+    <div id="output">متن استخراج شده اینجا نمایش داده می‌شود...</div>
 
     <script>
-        let display = document.getElementById("display");
+        document.getElementById('fileInput').addEventListener('change', function(event) {
+            const file = event.target.files[0];
+            if (!file) return;
 
-        function appendNumber(number) {
-            display.value += number;
-        }
-
-        function appendOperator(operator) {
-            let lastChar = display.value[display.value.length - 1];
-            if (lastChar && "+-*/".includes(lastChar)) return;
-            display.value += operator;
-        }
-
-        function appendDot() {
-            if (!display.value.includes(".")) {
-                display.value += ".";
-            }
-        }
-
-        function clearDisplay() {
-            display.value = "";
-        }
-
-        function toggleSign() {
-            if (display.value) {
-                display.value = parseFloat(display.value) * -1;
-            }
-        }
-
-        function percentage() {
-            if (display.value) {
-                display.value = parseFloat(display.value) / 100;
-            }
-        }
-
-        function calculateResult() {
-            try {
-                display.value = eval(display.value);
-            } catch {
-                display.value = "Error";
-            }
-        }
+            const reader = new FileReader();
+            reader.onload = function() {
+                Tesseract.recognize(reader.result, 'fas') // برای فارسی 'fas'، برای انگلیسی 'eng'
+                    .then(({ data: { text } }) => {
+                        document.getElementById('output').innerText = text;
+                    })
+                    .catch(error => console.error('خطا در پردازش تصویر:', error));
+            };
+            reader.readAsDataURL(file);
+        });
     </script>
-
 </body>
 </html>
