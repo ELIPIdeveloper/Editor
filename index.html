@@ -3,90 +3,48 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>استخراج متن از تصویر</title>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/tesseract.js/4.0.2/tesseract.min.js"></script>
+    <title>تشخیص چهره با Face-api.js</title>
+    <script defer src="https://cdn.jsdelivr.net/npm/@vladmandic/face-api@latest/dist/face-api.min.js"></script>
     <style>
-        body { font-family: Arial, sans-serif; text-align: center; direction: rtl; }
-        #canvasContainer { position: relative; display: inline-block; }
-        canvas { border: 1px solid #ccc; }
-        .highlight { position: absolute; background: rgba(255, 255, 0, 0.5); cursor: pointer; }
+        body { text-align: center; font-family: Arial, sans-serif; }
+        video { border: 2px solid black; width: 400px; }
+        canvas { position: absolute; top: 0; left: 0; }
     </style>
 </head>
 <body>
-    <h2>استخراج متن از تصویر و نمایش روی آن</h2>
-    <input type="file" id="fileInput" accept="image/*">
-    <select id="languageSelect">
-        <option value="eng">انگلیسی</option>
-        <option value="fas">فارسی</option>
-        <option value="ara">عربی</option>
-        <option value="rus">روسی</option>
-        <option value="jpn">ژاپنی</option>
-        <option value="multi">همه زبان‌ها (کندتر)</option>
-    </select>
-    <div id="canvasContainer">
-        <canvas id="imageCanvas"></canvas>
-    </div>
-    <div id="output">متن استخراج شده اینجا نمایش داده می‌شود...</div>
-
+    <h2>تشخیص چهره با جاوااسکریپت</h2>
+    <video id="video" autoplay muted></video>
     <script>
-        const fileInput = document.getElementById('fileInput');
-        const languageSelect = document.getElementById('languageSelect');
-        const canvas = document.getElementById('imageCanvas');
-        const ctx = canvas.getContext('2d');
-        const outputDiv = document.getElementById('output');
-        const container = document.getElementById('canvasContainer');
+        async function startFaceDetection() {
+            const video = document.getElementById('video');
+            
+            // دریافت ویدیو از دوربین
+            navigator.mediaDevices.getUserMedia({ video: {} })
+                .then(stream => { video.srcObject = stream; })
+                .catch(err => console.error("خطا در دسترسی به دوربین:", err));
 
-        fileInput.addEventListener('change', function(event) {
-            const file = event.target.files[0];
-            if (!file) return;
+            // بارگذاری مدل‌ها
+            await faceapi.nets.tinyFaceDetector.loadFromUri('https://cdn.jsdelivr.net/npm/@vladmandic/face-api@latest/model/');
+            await faceapi.nets.faceLandmark68Net.loadFromUri('https://cdn.jsdelivr.net/npm/@vladmandic/face-api@latest/model/');
 
-            const reader = new FileReader();
-            reader.onload = function() {
-                const img = new Image();
-                img.onload = function() {
-                    canvas.width = img.width / 2;
-                    canvas.height = img.height / 2;
-                    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+            video.addEventListener('play', async () => {
+                const canvas = faceapi.createCanvasFromMedia(video);
+                document.body.append(canvas);
+                const displaySize = { width: video.width, height: video.height };
+                faceapi.matchDimensions(canvas, displaySize);
 
-                    // شناسایی متن
-                    processImage(canvas, languageSelect.value);
-                };
-                img.src = reader.result;
-            };
-            reader.readAsDataURL(file);
-        });
-
-        function processImage(canvas, lang) {
-            let langCode = lang === "multi" ? "eng+fas+ara+rus+jpn" : lang;
-
-            Tesseract.recognize(canvas, langCode, {
-                logger: m => console.log(m)
-            }).then(({ data: { text, words } }) => {
-                outputDiv.innerText = text; // نمایش کل متن استخراج‌شده
-                drawBoxes(words);
-            }).catch(error => console.error('خطا در پردازش تصویر:', error));
-        }
-
-        function drawBoxes(words) {
-            words.forEach(word => {
-                const { x0, y0, x1, y1 } = word.bbox;
-                const width = (x1 - x0) / 2;
-                const height = (y1 - y0) / 2;
-
-                const div = document.createElement('div');
-                div.className = 'highlight';
-                div.style.left = `${x0 / 2}px`;
-                div.style.top = `${y0 / 2}px`;
-                div.style.width = `${width}px`;
-                div.style.height = `${height}px`;
-
-                div.addEventListener('click', () => {
-                    alert(`متن انتخاب‌شده: ${word.text}`);
-                });
-
-                container.appendChild(div);
+                setInterval(async () => {
+                    const detections = await faceapi.detectAllFaces(video, new faceapi.TinyFaceDetectorOptions())
+                        .withFaceLandmarks();
+                    canvas.getContext('2d').clearRect(0, 0, canvas.width, canvas.height);
+                    const resizedDetections = faceapi.resizeResults(detections, displaySize);
+                    faceapi.draw.drawDetections(canvas, resizedDetections);
+                    faceapi.draw.drawFaceLandmarks(canvas, resizedDetections);
+                }, 100);
             });
         }
+
+        startFaceDetection();
     </script>
 </body>
 </html>
