@@ -3,48 +3,90 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>تشخیص چهره با Face-api.js</title>
-    <script defer src="https://cdn.jsdelivr.net/npm/@vladmandic/face-api@latest/dist/face-api.min.js"></script>
+    <title>حذف پس‌زمینه عکس بدون API</title>
     <style>
-        body { text-align: center; font-family: Arial, sans-serif; }
-        video { border: 2px solid black; width: 400px; }
-        canvas { position: absolute; top: 0; left: 0; }
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+            margin: 20px;
+        }
+        #result {
+            margin-top: 20px;
+        }
     </style>
 </head>
 <body>
-    <h2>تشخیص چهره با جاوااسکریپت</h2>
-    <video id="video" autoplay muted></video>
+    <h1>آپلود عکس و حذف پس‌زمینه</h1>
+    <input type="file" id="imageUpload" accept="image/*">
+    <div id="result"></div>
+
+    <!-- اضافه کردن کتابخانه ML5.js -->
+    <script src="https://cdn.jsdelivr.net/npm/ml5@latest/dist/ml5.min.js"></script>
     <script>
-        async function startFaceDetection() {
-            const video = document.getElementById('video');
-            
-            // دریافت ویدیو از دوربین
-            navigator.mediaDevices.getUserMedia({ video: {} })
-                .then(stream => { video.srcObject = stream; })
-                .catch(err => console.error("خطا در دسترسی به دوربین:", err));
+        let segmenter;
 
-            // بارگذاری مدل‌ها
-            await faceapi.nets.tinyFaceDetector.loadFromUri('https://cdn.jsdelivr.net/npm/@vladmandic/face-api@latest/model/');
-            await faceapi.nets.faceLandmark68Net.loadFromUri('https://cdn.jsdelivr.net/npm/@vladmandic/face-api@latest/model/');
+        document.getElementById('imageUpload').addEventListener('change', function(event) {
+            const file = event.target.files[0];
+            if (!file) return;
 
-            video.addEventListener('play', async () => {
-                const canvas = faceapi.createCanvasFromMedia(video);
-                document.body.append(canvas);
-                const displaySize = { width: video.width, height: video.height };
-                faceapi.matchDimensions(canvas, displaySize);
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const imgElement = document.createElement('img');
+                imgElement.src = e.target.result;
 
-                setInterval(async () => {
-                    const detections = await faceapi.detectAllFaces(video, new faceapi.TinyFaceDetectorOptions())
-                        .withFaceLandmarks();
-                    canvas.getContext('2d').clearRect(0, 0, canvas.width, canvas.height);
-                    const resizedDetections = faceapi.resizeResults(detections, displaySize);
-                    faceapi.draw.drawDetections(canvas, resizedDetections);
-                    faceapi.draw.drawFaceLandmarks(canvas, resizedDetections);
-                }, 100);
-            });
+                // انتظار بارگذاری عکس
+                imgElement.onload = function() {
+                    if (!segmenter) {
+                        // بارگذاری مدل Segmenter
+                        segmenter = ml5.segmenter('bodyPix', modelReady);
+                    } else {
+                        processImage(imgElement);
+                    }
+                };
+            };
+            reader.readAsDataURL(file);
+        });
+
+        function modelReady() {
+            console.log('مدل آماده است.');
         }
 
-        startFaceDetection();
+        function processImage(image) {
+            segmenter.segment(image, { outputStride: 16 }, (err, result) => {
+                if (err) {
+                    console.error('خطا در پردازش عکس:', err);
+                    alert('خطا در پردازش عکس.');
+                    return;
+                }
+
+                // ایجاد یک canvas برای نمایش نتیجه
+                const canvas = document.createElement('canvas');
+                canvas.width = image.width;
+                canvas.height = image.height;
+                const ctx = canvas.getContext('2d');
+
+                // نگهداری تنها قسمت مربوط به بدن
+                for (let y = 0; y < result.data.length; y += 4) {
+                    if (result.data[y + 3] > 128) {
+                        result.data[y + 3] = 255; // بخش مربوط به بدن
+                    } else {
+                        result.data[y + 3] = 0; // بخش مربوط به پس‌زمینه
+                    }
+                }
+
+                const maskImage = new ImageData(new Uint8ClampedArray(result.data), image.width, image.height);
+                ctx.putImageData(maskImage, 0, 0);
+
+                // ترکیب عکس اصلی و ماسک
+                ctx.globalCompositeOperation = 'source-in';
+                ctx.drawImage(image, 0, 0);
+
+                // نمایش نتیجه
+                const resultDiv = document.getElementById('result');
+                resultDiv.innerHTML = `<canvas style="border: 1px solid black;" width="${canvas.width}" height="${canvas.height}"></canvas>`;
+                resultDiv.querySelector('canvas').getContext('2d').drawImage(canvas, 0, 0);
+            });
+        }
     </script>
 </body>
 </html>
