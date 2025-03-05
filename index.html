@@ -3,18 +3,20 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>جستجو در Bing</title>
+    <title>مرورگر ساده - یافتن لینک‌های مرتبط</title>
     <style>
         body {
             font-family: Arial, sans-serif;
-            text-align: center;
-            padding: 20px;
+            margin: 20px;
             direction: rtl;
+            text-align: right;
         }
-        input {
-            width: 80%;
+        textarea {
+            width: 100%;
+            height: 150px;
+            margin-bottom: 10px;
             padding: 10px;
-            margin: 10px 0;
+            box-sizing: border-box;
             font-size: 16px;
         }
         button {
@@ -22,66 +24,58 @@
             font-size: 16px;
             cursor: pointer;
         }
-        #results {
+        #result {
             margin-top: 20px;
-            text-align: right;
-        }
-        .result-item {
-            margin-bottom: 15px;
-        }
-        .result-item a {
-            color: blue;
-            text-decoration: none;
-            font-size: 18px;
+            padding: 10px;
+            background-color: #f9f9f9;
+            border: 1px solid #ddd;
+            min-height: 100px;
+            word-wrap: break-word;
         }
     </style>
 </head>
 <body>
-    <h2>جستجو در Bing</h2>
-    <input type="text" id="searchQuery" placeholder="متن مورد نظر را وارد کنید">
-    <button onclick="searchBing()">جستجو</button>
-    <div id="results"></div>
+
+    <h1>یافتن لینک‌های مرتبط با متن</h1>
+    <p>موضوع یا متن خود را در کادر زیر وارد کنید:</p>
+
+    <textarea id="inputText" placeholder="موضوع یا متن خود را اینجا وارد کنید..."></textarea>
+    <button onclick="searchLinks()">جستجوی لینک‌ها</button>
+
+    <div id="result"></div>
 
     <script>
-        async function searchBing() {
-            let query = document.getElementById("searchQuery").value;
-            if (!query) return alert("لطفاً یک متن وارد کنید!");
+        async function searchLinks() {
+            // گرفتن متن ورودی
+            const inputText = document.getElementById('inputText').value;
 
-            let url = `https://www.bing.com/search?q=${encodeURIComponent(query)}`;
+            if (!inputText.trim()) {
+                alert("لطفاً یک متن وارد کنید.");
+                return;
+            }
+
+            // URL API DuckDuckGo
+            const apiUrl = `https://api.duckduckgo.com/?q=${encodeURIComponent(inputText)}&format=json`;
 
             try {
-                let response = await fetch(url, { headers: { "User-Agent": "Mozilla/5.0" } });
-                let text = await response.text();
+                // فراخوانی API
+                const response = await fetch(apiUrl);
+                const data = await response.json();
 
-                let parser = new DOMParser();
-                let doc = parser.parseFromString(text, "text/html");
-
-                let resultsDiv = document.getElementById("results");
-                resultsDiv.innerHTML = ""; // پاک کردن نتایج قبلی
-
-                let searchResults = doc.querySelectorAll(".b_algo h2 a"); // انتخاب لینک‌های نتایج
-
-                if (searchResults.length === 0) {
-                    resultsDiv.innerHTML = "<p>نتیجه‌ای پیدا نشد!</p>";
-                    return;
+                // نمایش نتایج
+                let resultDiv = document.getElementById('result');
+                if (data.RelatedTopics && data.RelatedTopics.length > 0) {
+                    let links = data.RelatedTopics.map(topic => topic.FirstURL).filter(url => url);
+                    resultDiv.innerHTML = '<strong>لینک‌های مرتبط:</strong><br>' + links.join('<br>');
+                } else {
+                    resultDiv.innerHTML = '<strong>هیچ لینک مرتبطی یافت نشد.</strong>';
                 }
-
-                searchResults.forEach(link => {
-                    let itemDiv = document.createElement("div");
-                    itemDiv.className = "result-item";
-                    let anchor = document.createElement("a");
-                    anchor.href = link.href;
-                    anchor.textContent = link.textContent;
-                    anchor.target = "_blank";
-                    itemDiv.appendChild(anchor);
-                    resultsDiv.appendChild(itemDiv);
-                });
-
             } catch (error) {
                 console.error("خطا در دریافت نتایج:", error);
-                alert("خطایی رخ داد. لطفاً دوباره تلاش کنید.");
+                document.getElementById('result').innerHTML = '<strong>خطایی رخ داد. لطفاً دوباره امتحان کنید.</strong>';
             }
         }
     </script>
+
 </body>
 </html>
