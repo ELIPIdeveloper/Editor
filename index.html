@@ -11,9 +11,9 @@
             margin: 20px;
         }
         .emoji-image {
-            font-size: 10px;
+            font-size: 6px; /* کاهش سایز ایموجی‌ها برای نمایش جزئیات بیشتر */
             white-space: pre;
-            line-height: 10px;
+            line-height: 6px;
         }
     </style>
 </head>
@@ -43,8 +43,8 @@
                     const canvas = document.createElement('canvas');
                     const ctx = canvas.getContext('2d');
 
-                    // تنظیم اندازه کوچک‌تر برای پردازش سریع‌تر
-                    const scale = Math.max(img.width, img.height) / 50;
+                    // افزایش جزئیات تصویر (۵ برابر بیشتر)
+                    const scale = Math.max(img.width, img.height) / 250;
                     canvas.width = img.width / scale;
                     canvas.height = img.height / scale;
 
@@ -61,7 +61,6 @@
                             const g = data[i + 1];
                             const b = data[i + 2];
 
-                            // گرفتن ایموجی متناظر با رنگ
                             emojiOutput += getEmojiByColor(r, g, b);
                         }
                         emojiOutput += '\n';
@@ -76,45 +75,29 @@
         }
 
         function getEmojiByColor(r, g, b) {
-            // تبدیل RGB به مقیاس خاکستری برای بررسی روشنی
             const brightness = (r * 0.299 + g * 0.587 + b * 0.114) / 255;
+            let hue = Math.atan2(Math.sqrt(3) * (g - b), 2 * r - g - b) * (180 / Math.PI);
+            if (hue < 0) hue += 360;
 
-            // تبدیل RGB به Hue برای تشخیص رنگ اصلی
-            let max = Math.max(r, g, b);
-            let min = Math.min(r, g, b);
-            let delta = max - min;
-            let hue = 0;
+            // تخصیص ۶۴ رنگ به ایموجی‌ها
+            const emojis = [
+                '⬛', '⬜', '🔴', '🟠', '🟡', '🟢', '🔵', '🟣',
+                '🟥', '🟧', '🟨', '🟩', '🟦', '🟪', '🟫', '⚫',
+                '⚪', '🔶', '🔷', '🔺', '🔻', '🔘', '⚪', '⚫',
+                '🎨', '🎭', '🎲', '🎵', '🎶', '🎼', '🎧', '🎤',
+                '🎷', '🎺', '🎸', '🎻', '🎮', '🎰', '🎯', '🎳',
+                '⚽', '🏀', '🏈', '⚾', '🥎', '🏐', '🏉', '🎱',
+                '🎾', '🥏', '🎿', '🏂', '⛷️', '🏋️', '🏊', '🚴',
+                '🚵', '🎭', '🎨', '🎬', '🎤', '🎹', '🎼', '🎧'
+            ];
 
-            if (delta !== 0) {
-                if (max === r) {
-                    hue = ((g - b) / delta) % 6;
-                } else if (max === g) {
-                    hue = (b - r) / delta + 2;
-                } else {
-                    hue = (r - g) / delta + 4;
-                }
-                hue = Math.round(hue * 60);
-                if (hue < 0) hue += 360;
-            }
+            // تبدیل hue و brightness به یک مقدار عددی ۰ تا ۶۳
+            const hueIndex = Math.floor((hue / 360) * 8);  // ۸ دسته رنگ
+            const brightnessIndex = Math.floor(brightness * 8);  // ۸ سطح روشنایی
 
-            // تخصیص ایموجی‌ها بر اساس Hue و Brightness
-            if (brightness > 0.9) return '⬜'; // سفید
-            if (brightness < 0.1) return '⬛'; // سیاه
-
-            if (hue < 15 || hue > 345) return '❤️'; // قرمز
-            if (hue < 45) return '🟠'; // نارنجی
-            if (hue < 75) return '💛'; // زرد
-            if (hue < 105) return '💚'; // سبز روشن
-            if (hue < 135) return '🌿'; // سبز گیاهی
-            if (hue < 165) return '💙'; // آبی
-            if (hue < 195) return '🦋'; // آبی تیره
-            if (hue < 225) return '🔵'; // آبی پررنگ
-            if (hue < 255) return '💜'; // بنفش
-            if (hue < 285) return '🟣'; // بنفش تیره
-            if (hue < 315) return '🌸'; // صورتی
-            if (hue < 345) return '🎀'; // صورتی پررنگ
-
-            return '⬛'; // پیش‌فرض: سیاه
+            // ترکیب رنگ و روشنایی برای یافتن ایموجی مناسب
+            const index = hueIndex * 8 + brightnessIndex;
+            return emojis[index];
         }
 
         function downloadEmojiImage() {
