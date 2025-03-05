@@ -3,83 +3,68 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>صفحه VR</title>
-    <style>
-        body, html {
-            margin: 0;
-            padding: 0;
-            height: 100%;
-            overflow: hidden;
-        }
-
-        .container {
-            display: flex;
-            height: 100%;
-        }
-
-        /* بخش چپ */
-        .left, .right {
-            width: 50%;
-            position: relative;
-        }
-
-        /* پنل بالایی */
-        .top-panel {
-            position: absolute;
-            top: 20px; /* فاصله از بالا */
-            left: 20px; /* فاصله از چپ */
-            width: calc(50% - 40px); /* عرض 50% با فاصله */
-            height: 50px;
-            background: rgba(255, 255, 255, 0.3);
-            backdrop-filter: blur(10px); /* ایجاد اثر بلوری */
-            border: 1px solid rgba(255, 255, 255, 0.5);
-            border-radius: 10px;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            padding: 0 20px;
-            box-sizing: border-box;
-        }
-
-        .top-panel span {
-            font-family: Arial, sans-serif;
-            font-size: 16px;
-            color: #fff;
-        }
-
-        /* بخش چپ */
-        .left {
-            background: url('camera-left.jpg') no-repeat center center/cover; /* جایگزین کنید با تصویر دوربین */
-        }
-
-        /* بخش راست */
-        .right {
-            background: url('camera-right.jpg') no-repeat center center/cover; /* جایگزین کنید با تصویر دوربین */
-        }
-
-        /* توضیحات داخل پنل */
-        .speed-info {
-            font-weight: bold;
-        }
-    </style>
+    <title>اسکنر اسناد</title>
+    <script async src="https://docs.opencv.org/master/opencv.js"></script>
 </head>
 <body>
-    <div class="container">
-        <!-- بخش چپ -->
-        <div class="left">
-            <div class="top-panel">
-                <span>ساعت: 12:34 PM</span>
-                <span class="speed-info">سرعت: 60 KM/H</span>
-            </div>
-        </div>
+    <h2>اسکن تصویر مانند CamScanner</h2>
+    <input type="file" id="imageInput" accept="image/*">
+    <canvas id="canvas"></canvas>
+    <br>
+    <button id="downloadBtn" style="display: none;">دانلود تصویر اسکن شده</button>
 
-        <!-- بخش راست -->
-        <div class="right">
-            <div class="top-panel">
-                <span>ساعت: 12:34 PM</span>
-                <span class="speed-info">سرعت: 60 KM/H</span>
-            </div>
-        </div>
-    </div>
+    <script>
+        document.getElementById("imageInput").addEventListener("change", function(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const img = new Image();
+                img.onload = function() {
+                    let canvas = document.getElementById("canvas");
+                    let ctx = canvas.getContext("2d");
+
+                    // تنظیم اندازه بوم
+                    canvas.width = img.width;
+                    canvas.height = img.height;
+                    ctx.drawImage(img, 0, 0);
+
+                    // بارگذاری OpenCV
+                    cv.onRuntimeInitialized = function() {
+                        let src = cv.imread(canvas);
+                        let dst = new cv.Mat();
+                        let gray = new cv.Mat();
+                        let blurred = new cv.Mat();
+                        let edges = new cv.Mat();
+
+                        // تبدیل به سطح خاکستری
+                        cv.cvtColor(src, gray, cv.COLOR_RGBA2GRAY, 0);
+                        // اعمال بلور برای کاهش نویز
+                        cv.GaussianBlur(gray, blurred, new cv.Size(5, 5), 0);
+                        // تشخیص لبه‌ها با Canny
+                        cv.Canny(blurred, edges, 50, 150);
+
+                        // نمایش تصویر پردازش شده
+                        cv.imshow("canvas", edges);
+
+                        // ذخیره تصویر
+                        document.getElementById("downloadBtn").style.display = "block";
+                        document.getElementById("downloadBtn").onclick = function() {
+                            let link = document.createElement("a");
+                            link.href = canvas.toDataURL("image/png");
+                            link.download = "scanned-image.png";
+                            link.click();
+                        };
+
+                        // آزاد کردن حافظه
+                        src.delete(); dst.delete(); gray.delete(); blurred.delete(); edges.delete();
+                    };
+                };
+                img.src = e.target.result;
+            };
+            reader.readAsDataURL(file);
+        });
+    </script>
 </body>
 </html>
