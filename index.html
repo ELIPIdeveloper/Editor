@@ -3,119 +3,83 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>صفحه VR با دوربین پشت</title>
+    <title>صفحه VR</title>
     <style>
         body, html {
             margin: 0;
             padding: 0;
             height: 100%;
             overflow: hidden;
-            background: radial-gradient(circle, rgba(0, 0, 0, 0.9), rgba(0, 0, 0, 1));
-            font-family: Arial, sans-serif;
         }
 
-        /* طراحی پنل VR */
-        .vr-panel {
-            position: relative;
-            width: 50%;
-            height: 50px; /* ارتفاع پنل */
-            background: rgba(255, 255, 255, 0.1);
-            backdrop-filter: blur(10px); /* اثر بلور */
-            border: 2px solid rgba(255, 255, 255, 0.3); /* اثر کرب */
-            border-radius: 10px; /* زاویه گرد */
-            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.5); /* اثر سایه */
+        .container {
             display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 0 10px;
-            color: white;
-            font-size: 16px;
-        }
-
-        .vr-panel h3 {
-            margin: 0;
-            font-size: 18px;
-        }
-
-        /* طراحی بخش‌های دوربین */
-        .camera-section {
-            position: relative;
-            width: 50%;
-            height: calc(50% - 60px); /* ارتفاع بخش دوربین */
-            float: left;
-            overflow: hidden;
-        }
-
-        video {
-            width: 100%;
             height: 100%;
-            object-fit: cover;
+        }
+
+        /* بخش چپ */
+        .left, .right {
+            width: 50%;
+            position: relative;
+        }
+
+        /* پنل بالایی */
+        .top-panel {
+            position: absolute;
+            top: 20px; /* فاصله از بالا */
+            left: 20px; /* فاصله از چپ */
+            width: calc(50% - 40px); /* عرض 50% با فاصله */
+            height: 50px;
+            background: rgba(255, 255, 255, 0.3);
+            backdrop-filter: blur(10px); /* ایجاد اثر بلوری */
+            border: 1px solid rgba(255, 255, 255, 0.5);
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 20px;
+            box-sizing: border-box;
+        }
+
+        .top-panel span {
+            font-family: Arial, sans-serif;
+            font-size: 16px;
+            color: #fff;
+        }
+
+        /* بخش چپ */
+        .left {
+            background: url('camera-left.jpg') no-repeat center center/cover; /* جایگزین کنید با تصویر دوربین */
+        }
+
+        /* بخش راست */
+        .right {
+            background: url('camera-right.jpg') no-repeat center center/cover; /* جایگزین کنید با تصویر دوربین */
+        }
+
+        /* توضیحات داخل پنل */
+        .speed-info {
+            font-weight: bold;
         }
     </style>
 </head>
 <body>
-    <!-- پنل VR و بخش دوربین اول -->
-    <div class="vr-panel" id="vrPanel1">
-        <h3>بخش 1</h3>
-        <span id="clock1">ساعت: --:--:--</span>
-        <span id="speed1">سرعت: 0 KM/H</span>
+    <div class="container">
+        <!-- بخش چپ -->
+        <div class="left">
+            <div class="top-panel">
+                <span>ساعت: 12:34 PM</span>
+                <span class="speed-info">سرعت: 60 KM/H</span>
+            </div>
+        </div>
+
+        <!-- بخش راست -->
+        <div class="right">
+            <div class="top-panel">
+                <span>ساعت: 12:34 PM</span>
+                <span class="speed-info">سرعت: 60 KM/H</span>
+            </div>
+        </div>
     </div>
-    <div class="camera-section" id="camera-section-1"></div>
-
-    <!-- پنل VR و بخش دوربین دوم -->
-    <div class="vr-panel" id="vrPanel2">
-        <h3>بخش 2</h3>
-        <span id="clock2">ساعت: --:--:--</span>
-        <span id="speed2">سرعت: 0 KM/H</span>
-    </div>
-    <div class="camera-section" id="camera-section-2"></div>
-
-    <script>
-        // تابع برای نمایش ساعت
-        function updateClock(id) {
-            const now = new Date();
-            const hours = String(now.getHours()).padStart(2, '0');
-            const minutes = String(now.getMinutes()).padStart(2, '0');
-            const seconds = String(now.getSeconds()).padStart(2, '0');
-            document.getElementById(id).textContent = `ساعت: ${hours}:${minutes}:${seconds}`;
-        }
-
-        // تابع برای نمایش سرعت
-        function updateSpeed(id) {
-            const speed = Math.floor(Math.random() * 120); // سرعت تصادفی بین 0 تا 120
-            document.getElementById(id).textContent = `سرعت: ${speed} KM/H`;
-        }
-
-        // به روزرسانی ساعات و سرعت هر ثانیه
-        setInterval(() => updateClock('clock1'), 1000);
-        setInterval(() => updateClock('clock2'), 1000);
-        setInterval(() => updateSpeed('speed1'), 1000);
-        setInterval(() => updateSpeed('speed2'), 1000);
-
-        // تابع برای دسترسی به دوربین پشت
-        async function setupCamera(containerId) {
-            const constraints = {
-                video: {
-                    facingMode: 'environment' // انتخاب دوربین پشت
-                }
-            };
-
-            try {
-                const stream = await navigator.mediaDevices.getUserMedia(constraints);
-                const videoElement = document.createElement('video');
-                videoElement.srcObject = stream;
-                videoElement.play();
-
-                const container = document.getElementById(containerId);
-                container.appendChild(videoElement);
-            } catch (error) {
-                console.error('خطا در دسترسی به دوربین:', error);
-            }
-        }
-
-        // تنظیم دوربین برای هر بخش
-        setupCamera('camera-section-1');
-        setupCamera('camera-section-2');
-    </script>
 </body>
 </html>
