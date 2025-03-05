@@ -3,114 +3,64 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>تشخیص صورت و انتخاب تصادفی</title>
+    <title>نمایش دوربین پشت - صفحه افقی</title>
     <style>
-        body {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            height: 100vh;
+        body, html {
             margin: 0;
-            font-family: Arial, sans-serif;
+            padding: 0;
+            height: 100%;
+            overflow: hidden;
+        }
+        .container {
+            display: flex;
+            height: 100%;
+        }
+        .camera-section {
+            width: 50%;
+            height: 100%;
+            overflow: hidden;
         }
         video {
-            border: 2px solid #333;
-            max-width: 640px;
-        }
-        canvas {
-            position: absolute;
-            pointer-events: none;
-        }
-        button {
-            margin-top: 20px;
-            padding: 10px 20px;
-            font-size: 16px;
-            cursor: pointer;
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
         }
     </style>
 </head>
 <body>
-    <h1>تشخیص صورت و انتخاب تصادفی</h1>
-    <video id="video" width="640" height="480" autoplay playsinline></video>
-    <canvas id="canvas"></canvas>
-    <button id="selectRandom">انتخاب تصادفی</button>
+    <div class="container">
+        <!-- نصف اول -->
+        <div class="camera-section" id="camera-section-1"></div>
 
-    <!-- لینک به کتابخانه face-api.js -->
-    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs"></script>
-    <script src="https://cdn.jsdelivr.net/npm/face-api/dist/face-api.min.js"></script>
+        <!-- نصف دوم -->
+        <div class="camera-section" id="camera-section-2"></div>
+    </div>
 
     <script>
-        // متغیرهای جهت ذخیره سازی ویدئو، کانواس و مدل
-        const video = document.getElementById('video');
-        const canvas = document.getElementById('canvas');
-        const ctx = canvas.getContext('2d');
-        const selectRandomButton = document.getElementById('selectRandom');
+        // تابع برای دسترسی به دوربین پشت
+        async function setupCamera(containerId) {
+            const constraints = {
+                video: {
+                    facingMode: 'environment' // انتخاب دوربین پشت
+                }
+            };
 
-        // بارگذاری مدل‌های مورد نیاز
-        async function loadModels() {
-            await faceapi.nets.tinyFaceDetector.loadFromUri('/models');
-            await faceapi.nets.faceLandmark68Net.loadFromUri('/models');
-            await faceapi.nets.faceRecognitionNet.loadFromUri('/models');
-        }
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia(constraints);
+                const videoElement = document.createElement('video');
+                videoElement.srcObject = stream;
+                videoElement.play();
 
-        // فعال‌سازی دوربین
-        async function startCamera() {
-            const stream = await navigator.mediaDevices.getUserMedia({ video: true });
-            video.srcObject = stream;
-        }
-
-        // تشخیص صورت و رسم مستطیل حول آن
-        async function detectFaces() {
-            const detections = await faceapi.detectAllFaces(video, new faceapi.TinyFaceDetectorOptions()).withFaceLandmarks();
-            return detections;
-        }
-
-        // رسم مستطیل حول صورت‌ها
-        function drawRectangles(detections) {
-            canvas.width = video.width;
-            canvas.height = video.height;
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-            detections.forEach((detection) => {
-                const box = detection.detection.box;
-                ctx.strokeStyle = 'red';
-                ctx.lineWidth = 2;
-                ctx.strokeRect(box.x, box.y, box.width, box.height);
-            });
-        }
-
-        // انتخاب تصادفی یک صورت
-        function selectRandomFace(detections) {
-            if (detections.length === 0) {
-                alert('صورتی پیدا نشد!');
-                return;
+                const container = document.getElementById(containerId);
+                container.appendChild(videoElement);
+            } catch (error) {
+                console.error('خطا در دسترسی به دوربین:', error);
             }
-
-            const randomIndex = Math.floor(Math.random() * detections.length);
-            const selectedDetection = detections[randomIndex];
-            const box = selectedDetection.detection.box;
-
-            alert(`تصویر شما انتخاب شد! موقعیت: x=${box.x}, y=${box.y}`);
         }
 
-        // حلقه اصلی
-        async function mainLoop() {
-            await loadModels();
-            await startCamera();
-
-            setInterval(async () => {
-                const detections = await detectFaces();
-                drawRectangles(detections);
-            }, 100);
-
-            selectRandomButton.addEventListener('click', async () => {
-                const detections = await detectFaces();
-                selectRandomFace(detections);
-            });
-        }
-
-        mainLoop();
+        // تنظیم دوربین برای هر بخش
+        setupCamera('camera-section-1');
+        setupCamera('camera-section-2');
     </script>
 </body>
 </html>
