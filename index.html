@@ -3,101 +3,85 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>پاک کردن عکس با قلم</title>
+    <title>جستجو در Bing</title>
     <style>
-        canvas {
-            border: 2px solid black;
-            display: block;
-            margin: 20px auto;
-            max-width: 100%;
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+            padding: 20px;
+            direction: rtl;
+        }
+        input {
+            width: 80%;
+            padding: 10px;
+            margin: 10px 0;
+            font-size: 16px;
+        }
+        button {
+            padding: 10px 20px;
+            font-size: 16px;
+            cursor: pointer;
+        }
+        #results {
+            margin-top: 20px;
+            text-align: right;
+        }
+        .result-item {
+            margin-bottom: 15px;
+        }
+        .result-item a {
+            color: blue;
+            text-decoration: none;
+            font-size: 18px;
         }
     </style>
 </head>
 <body>
-
-    <h1>پاک کردن قسمتی از تصویر با قلم</h1>
-
-    <!-- کانواس برای نمایش و ویرایش تصویر -->
-    <canvas id="imageCanvas"></canvas>
+    <h2>جستجو در Bing</h2>
+    <input type="text" id="searchQuery" placeholder="متن مورد نظر را وارد کنید">
+    <button onclick="searchBing()">جستجو</button>
+    <div id="results"></div>
 
     <script>
-        // تابع برای بارگذاری تصویر روی کانواس
-        function loadImageToCanvas() {
-            const canvas = document.getElementById('imageCanvas');
-            const ctx = canvas.getContext('2d');
+        async function searchBing() {
+            let query = document.getElementById("searchQuery").value;
+            if (!query) return alert("لطفاً یک متن وارد کنید!");
 
-            // تنظیم اندازه کانواس
-            const img = new Image();
-            img.src = 'https://via.placeholder.com/500'; // جایگزین کنید با URL تصویر مورد نظر
-            img.onload = function () {
-                canvas.width = img.width;
-                canvas.height = img.height;
-                ctx.drawImage(img, 0, 0);
-            };
-        }
+            let url = `https://www.bing.com/search?q=${encodeURIComponent(query)}`;
 
-        // تابع برای پاک کردن قسمتی از تصویر
-        function setupEraser() {
-            const canvas = document.getElementById('imageCanvas');
-            const ctx = canvas.getContext('2d');
+            try {
+                let response = await fetch(url, { headers: { "User-Agent": "Mozilla/5.0" } });
+                let text = await response.text();
 
-            let isDrawing = false;
+                let parser = new DOMParser();
+                let doc = parser.parseFromString(text, "text/html");
 
-            // تنظیمات قلم پاک‌کن
-            ctx.strokeStyle = 'rgba(255, 255, 255, 1)'; // رنگ سفید برای پاک کردن
-            ctx.lineWidth = 20; // ضخامت قلم
-            ctx.lineCap = 'round';
-            ctx.lineJoin = 'round';
+                let resultsDiv = document.getElementById("results");
+                resultsDiv.innerHTML = ""; // پاک کردن نتایج قبلی
 
-            // رویداد شروع کشیدن
-            canvas.addEventListener('mousedown', (e) => {
-                isDrawing = true;
-                ctx.beginPath();
-                ctx.moveTo(e.offsetX, e.offsetY);
-            });
+                let searchResults = doc.querySelectorAll(".b_algo h2 a"); // انتخاب لینک‌های نتایج
 
-            // رویداد ادامه کشیدن
-            canvas.addEventListener('mousemove', (e) => {
-                if (isDrawing) {
-                    ctx.lineTo(e.offsetX, e.offsetY);
-                    ctx.stroke();
+                if (searchResults.length === 0) {
+                    resultsDiv.innerHTML = "<p>نتیجه‌ای پیدا نشد!</p>";
+                    return;
                 }
-            });
 
-            // رویداد پایان کشیدن
-            canvas.addEventListener('mouseup', () => {
-                isDrawing = false;
-            });
+                searchResults.forEach(link => {
+                    let itemDiv = document.createElement("div");
+                    itemDiv.className = "result-item";
+                    let anchor = document.createElement("a");
+                    anchor.href = link.href;
+                    anchor.textContent = link.textContent;
+                    anchor.target = "_blank";
+                    itemDiv.appendChild(anchor);
+                    resultsDiv.appendChild(itemDiv);
+                });
 
-            // پشتیبانی از لمس (اختیاری)
-            canvas.addEventListener('touchstart', (e) => {
-                e.preventDefault();
-                isDrawing = true;
-                const touch = e.touches[0];
-                ctx.beginPath();
-                ctx.moveTo(touch.clientX - canvas.offsetLeft, touch.clientY - canvas.offsetTop);
-            });
-
-            canvas.addEventListener('touchmove', (e) => {
-                e.preventDefault();
-                if (isDrawing) {
-                    const touch = e.touches[0];
-                    ctx.lineTo(touch.clientX - canvas.offsetLeft, touch.clientY - canvas.offsetTop);
-                    ctx.stroke();
-                }
-            });
-
-            canvas.addEventListener('touchend', () => {
-                isDrawing = false;
-            });
+            } catch (error) {
+                console.error("خطا در دریافت نتایج:", error);
+                alert("خطایی رخ داد. لطفاً دوباره تلاش کنید.");
+            }
         }
-
-        // بارگذاری تصویر و تنظیم پاک‌کن
-        window.onload = function () {
-            loadImageToCanvas();
-            setupEraser();
-        };
     </script>
-
 </body>
 </html>
