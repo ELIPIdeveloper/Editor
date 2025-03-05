@@ -3,79 +3,114 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>مرورگر ساده - یافتن لینک‌های مرتبط</title>
+    <title>تشخیص صورت و انتخاب تصادفی</title>
     <style>
         body {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            margin: 0;
             font-family: Arial, sans-serif;
-            margin: 20px;
-            direction: rtl;
-            text-align: right;
         }
-        textarea {
-            width: 100%;
-            height: 150px;
-            margin-bottom: 10px;
-            padding: 10px;
-            box-sizing: border-box;
-            font-size: 16px;
+        video {
+            border: 2px solid #333;
+            max-width: 640px;
+        }
+        canvas {
+            position: absolute;
+            pointer-events: none;
         }
         button {
+            margin-top: 20px;
             padding: 10px 20px;
             font-size: 16px;
             cursor: pointer;
         }
-        #result {
-            margin-top: 20px;
-            padding: 10px;
-            background-color: #f9f9f9;
-            border: 1px solid #ddd;
-            min-height: 100px;
-            word-wrap: break-word;
-        }
     </style>
 </head>
 <body>
+    <h1>تشخیص صورت و انتخاب تصادفی</h1>
+    <video id="video" width="640" height="480" autoplay playsinline></video>
+    <canvas id="canvas"></canvas>
+    <button id="selectRandom">انتخاب تصادفی</button>
 
-    <h1>یافتن لینک‌های مرتبط با متن</h1>
-    <p>موضوع یا متن خود را در کادر زیر وارد کنید:</p>
-
-    <textarea id="inputText" placeholder="موضوع یا متن خود را اینجا وارد کنید..."></textarea>
-    <button onclick="searchLinks()">جستجوی لینک‌ها</button>
-
-    <div id="result"></div>
+    <!-- لینک به کتابخانه face-api.js -->
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs"></script>
+    <script src="https://cdn.jsdelivr.net/npm/face-api/dist/face-api.min.js"></script>
 
     <script>
-        async function searchLinks() {
-            // گرفتن متن ورودی
-            const inputText = document.getElementById('inputText').value;
+        // متغیرهای جهت ذخیره سازی ویدئو، کانواس و مدل
+        const video = document.getElementById('video');
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+        const selectRandomButton = document.getElementById('selectRandom');
 
-            if (!inputText.trim()) {
-                alert("لطفاً یک متن وارد کنید.");
+        // بارگذاری مدل‌های مورد نیاز
+        async function loadModels() {
+            await faceapi.nets.tinyFaceDetector.loadFromUri('/models');
+            await faceapi.nets.faceLandmark68Net.loadFromUri('/models');
+            await faceapi.nets.faceRecognitionNet.loadFromUri('/models');
+        }
+
+        // فعال‌سازی دوربین
+        async function startCamera() {
+            const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+            video.srcObject = stream;
+        }
+
+        // تشخیص صورت و رسم مستطیل حول آن
+        async function detectFaces() {
+            const detections = await faceapi.detectAllFaces(video, new faceapi.TinyFaceDetectorOptions()).withFaceLandmarks();
+            return detections;
+        }
+
+        // رسم مستطیل حول صورت‌ها
+        function drawRectangles(detections) {
+            canvas.width = video.width;
+            canvas.height = video.height;
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            detections.forEach((detection) => {
+                const box = detection.detection.box;
+                ctx.strokeStyle = 'red';
+                ctx.lineWidth = 2;
+                ctx.strokeRect(box.x, box.y, box.width, box.height);
+            });
+        }
+
+        // انتخاب تصادفی یک صورت
+        function selectRandomFace(detections) {
+            if (detections.length === 0) {
+                alert('صورتی پیدا نشد!');
                 return;
             }
 
-            // URL API DuckDuckGo
-            const apiUrl = `https://api.duckduckgo.com/?q=${encodeURIComponent(inputText)}&format=json`;
+            const randomIndex = Math.floor(Math.random() * detections.length);
+            const selectedDetection = detections[randomIndex];
+            const box = selectedDetection.detection.box;
 
-            try {
-                // فراخوانی API
-                const response = await fetch(apiUrl);
-                const data = await response.json();
-
-                // نمایش نتایج
-                let resultDiv = document.getElementById('result');
-                if (data.RelatedTopics && data.RelatedTopics.length > 0) {
-                    let links = data.RelatedTopics.map(topic => topic.FirstURL).filter(url => url);
-                    resultDiv.innerHTML = '<strong>لینک‌های مرتبط:</strong><br>' + links.join('<br>');
-                } else {
-                    resultDiv.innerHTML = '<strong>هیچ لینک مرتبطی یافت نشد.</strong>';
-                }
-            } catch (error) {
-                console.error("خطا در دریافت نتایج:", error);
-                document.getElementById('result').innerHTML = '<strong>خطایی رخ داد. لطفاً دوباره امتحان کنید.</strong>';
-            }
+            alert(`تصویر شما انتخاب شد! موقعیت: x=${box.x}, y=${box.y}`);
         }
-    </script>
 
+        // حلقه اصلی
+        async function mainLoop() {
+            await loadModels();
+            await startCamera();
+
+            setInterval(async () => {
+                const detections = await detectFaces();
+                drawRectangles(detections);
+            }, 100);
+
+            selectRandomButton.addEventListener('click', async () => {
+                const detections = await detectFaces();
+                selectRandomFace(detections);
+            });
+        }
+
+        mainLoop();
+    </script>
 </body>
 </html>
