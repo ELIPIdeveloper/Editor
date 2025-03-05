@@ -3,64 +3,75 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>نمایش دوربین پشت - صفحه افقی</title>
+    <title>صفحه VR با نمایش ساعت و سرعت</title>
     <style>
         body, html {
             margin: 0;
             padding: 0;
             height: 100%;
             overflow: hidden;
+            background: radial-gradient(circle, rgba(0, 0, 0, 0.9), rgba(0, 0, 0, 1));
+            font-family: Arial, sans-serif;
         }
-        .container {
-            display: flex;
-            height: 100%;
-        }
-        .camera-section {
+
+        /* ایجاد اثر بلور و کرب */
+        .vr-panel {
+            position: absolute;
+            top: 50px; /* فاصله از بالا */
+            left: 50px; /* فاصله از چپ */
             width: 50%;
-            height: 100%;
-            overflow: hidden;
+            height: 50%;
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px); /* ایجاد اثر بلور */
+            border: 2px solid rgba(255, 255, 255, 0.3); /* ایجاد کرب */
+            border-radius: 15px; /* زاویه گرد */
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.5); /* ایجاد اثر سایه */
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+            color: white;
+            font-size: 20px;
         }
-        video {
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
+
+        .vr-panel h1 {
+            margin: 10px;
+            font-size: 24px;
+        }
+
+        .vr-panel p {
+            margin: 5px;
         }
     </style>
 </head>
 <body>
-    <div class="container">
-        <!-- نصف اول -->
-        <div class="camera-section" id="camera-section-1"></div>
-
-        <!-- نصف دوم -->
-        <div class="camera-section" id="camera-section-2"></div>
+    <!-- VR Panel -->
+    <div class="vr-panel" id="vrPanel">
+        <h1>VR پنل</h1>
+        <p id="clock">ساعت: --:--:--</p>
+        <p id="speed">سرعت: 0 KM/H</p>
     </div>
 
     <script>
-        // تابع برای دسترسی به دوربین پشت
-        async function setupCamera(containerId) {
-            const constraints = {
-                video: {
-                    facingMode: 'environment' // انتخاب دوربین پشت
-                }
-            };
-
-            try {
-                const stream = await navigator.mediaDevices.getUserMedia(constraints);
-                const videoElement = document.createElement('video');
-                videoElement.srcObject = stream;
-                videoElement.play();
-
-                const container = document.getElementById(containerId);
-                container.appendChild(videoElement);
-            } catch (error) {
-                console.error('خطا در دسترسی به دوربین:', error);
-            }
+        // تابع برای نمایش ساعت
+        function updateClock() {
+            const now = new Date();
+            const hours = String(now.getHours()).padStart(2, '0');
+            const minutes = String(now.getMinutes()).padStart(2, '0');
+            const seconds = String(now.getSeconds()).padStart(2, '0');
+            document.getElementById('clock').textContent = `ساعت: ${hours}:${minutes}:${seconds}`;
         }
 
-        // تنظیم دوربین برای هر بخش
-        setupCamera('camera-section-1');
-        setupCamera('camera-section-2');
+        // تابع برای نمایش سرعت (مثال: عدد تصادفی)
+        function updateSpeed() {
+            const speed = Math.floor(Math.random() * 120); // سرعت تصادفی بین 0 تا 120
+            document.getElementById('speed').textContent = `سرعت: ${speed} KM/H`;
+        }
+
+        // به روزرسانی ساعات و سرعت هر ثانیه
+        setInterval(updateClock, 1000);
+        setInterval(updateSpeed, 1000);
     </script>
 </body>
 </html>
