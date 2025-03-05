@@ -13,9 +13,9 @@
             color: white;
         }
         .emoji-image {
-            font-size: 3px; /* کاهش سایز ایموجی‌ها برای نمایش جزئیات بیشتر */
+            font-size: 2px; /* کاهش سایز ایموجی‌ها برای نمایش جزئیات بیشتر */
             white-space: pre;
-            line-height: 3px;
+            line-height: 2px;
             background-color: black;
             display: inline-block;
             text-align: left;
@@ -48,16 +48,17 @@
                     const canvas = document.createElement('canvas');
                     const ctx = canvas.getContext('2d');
 
-                    // افزایش ابعاد تصویر (دو برابر کردن اندازه)
+                    // تغییر سایز تصویر
                     const maxSize = 400; // حداکثر عرض یا ارتفاع کانواس
                     const scale = Math.max(img.width, img.height) / maxSize;
                     canvas.width = Math.floor(img.width / scale);
                     canvas.height = Math.floor(img.height / scale);
 
-                    // دو برابر کردن اندازه کانواس
+                    // دو برابر کردن ابعاد تصویر
                     canvas.width *= 2;
                     canvas.height *= 2;
 
+                    // رسم تصویر در کانواس
                     ctx.drawImage(img, 0, 0, canvas.width / 2, canvas.height / 2, 0, 0, canvas.width, canvas.height);
 
                     const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
@@ -106,7 +107,6 @@
                 '🍆', '🌶️', '🌽', '🥔', '🍞', '🥖', '🥯', '🍞', '🍷', '🍺', '🍻', '🥂', '🥃', '🥄', '🍴', '🍽️', '🍛',
                 '🍝', '🍲', '🥘', '🥗', '🍱', '🍣', '🍤', '🍜', '🍲', '🥟', '🥠', '🍮', '🍦', '🍧', '🍨', '🍩', '🍪',
                 '🍫', '🍬', '🍭'
-                // ... ادامه ایموجی ها
             ];
 
             // تبدیل hue و brightness به مقدار عددی ۰ تا ۴۰۹۶
