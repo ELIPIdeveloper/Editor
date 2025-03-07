@@ -7,7 +7,7 @@
     <script async src="https://docs.opencv.org/4.x/opencv.js"></script>
     <style>
         body { text-align: center; font-family: Arial, sans-serif; }
-        canvas { border: 1px solid black; }
+        canvas { border: 1px solid black; max-width: 100%; }
         #container { position: relative; display: inline-block; }
         .box { position: absolute; border: 2px solid red; cursor: pointer; }
     </style>
@@ -16,11 +16,13 @@
 
     <h2>آپلود عکس و حذف اشیا</h2>
     <input type="file" id="upload" accept="image/*">
+    <br><br>
     <div id="container">
         <canvas id="canvas"></canvas>
     </div>
 
     <script>
+        let originalImage = null; // برای ذخیره تصویر اصلی
         document.getElementById("upload").addEventListener("change", function (event) {
             let file = event.target.files[0];
             if (!file) return;
@@ -30,22 +32,33 @@
             img.onload = function () {
                 let canvas = document.getElementById("canvas");
                 let ctx = canvas.getContext("2d");
-                canvas.width = img.width;
-                canvas.height = img.height;
-                ctx.drawImage(img, 0, 0);
+
+                // تغییر سایز تصویر برای جلوگیری از ابعاد خیلی بزرگ
+                let maxWidth = 800; // عرض حداکثر
+                let scale = maxWidth / img.width;
+                let newWidth = Math.min(img.width, maxWidth);
+                let newHeight = img.height * scale;
+
+                canvas.width = newWidth;
+                canvas.height = newHeight;
+                ctx.drawImage(img, 0, 0, newWidth, newHeight);
+
+                // ذخیره نسخه اصلی برای ریکاوری
+                originalImage = ctx.getImageData(0, 0, newWidth, newHeight);
 
                 // وقتی OpenCV آماده شد، اشیا را شناسایی کن
                 cv["onRuntimeInitialized"] = function () {
-                    detectObjects(img, canvas);
+                    detectObjects(canvas);
                 };
             };
         });
 
-        function detectObjects(img, canvas) {
+        function detectObjects(canvas) {
             let src = cv.imread(canvas);
             let gray = new cv.Mat();
             cv.cvtColor(src, gray, cv.COLOR_RGBA2GRAY);
-
+            cv.GaussianBlur(gray, gray, new cv.Size(5, 5), 0, 0);
+            
             let edges = new cv.Mat();
             cv.Canny(gray, edges, 50, 150);
 
@@ -55,6 +68,9 @@
 
             let ctx = canvas.getContext("2d");
             let container = document.getElementById("container");
+
+            // حذف جعبه‌های قبلی
+            document.querySelectorAll(".box").forEach(box => box.remove());
 
             for (let i = 0; i < contours.size(); i++) {
                 let rect = cv.boundingRect(contours.get(i));
@@ -76,7 +92,10 @@
 
         function removeObject(rect, canvas) {
             let ctx = canvas.getContext("2d");
-            ctx.clearRect(rect.x, rect.y, rect.width, rect.height);
+
+            // پر کردن ناحیه با رنگ سفید (یا هر رنگ دلخواه)
+            ctx.fillStyle = "white";
+            ctx.fillRect(rect.x, rect.y, rect.width, rect.height);
         }
     </script>
 
