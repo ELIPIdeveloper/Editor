@@ -1,105 +1,84 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="fa">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>VR Camera with Face Detection</title>
+    <title>تشخیص و حذف اشیا از عکس</title>
+    <script async src="https://docs.opencv.org/4.x/opencv.js"></script>
     <style>
-        body {
-            margin: 0;
-            overflow: hidden;
-        }
-        .container {
-            display: flex;
-            width: 100vw;
-            height: 100vh;
-        }
-        .camera-view {
-            width: 50%;
-            height: 100%;
-            position: relative;
-            overflow: hidden;
-        }
-        video {
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-        }
-        canvas {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-        }
+        body { text-align: center; font-family: Arial, sans-serif; }
+        canvas { border: 1px solid black; }
+        #container { position: relative; display: inline-block; }
+        .box { position: absolute; border: 2px solid red; cursor: pointer; }
     </style>
 </head>
 <body>
-    <div class="container">
-        <div class="camera-view" id="view-left">
-            <video id="video-left" autoplay playsinline></video>
-            <canvas id="canvas-left"></canvas>
-        </div>
-        <div class="camera-view" id="view-right">
-            <video id="video-right" autoplay playsinline></video>
-            <canvas id="canvas-right"></canvas>
-        </div>
+
+    <h2>آپلود عکس و حذف اشیا</h2>
+    <input type="file" id="upload" accept="image/*">
+    <div id="container">
+        <canvas id="canvas"></canvas>
     </div>
 
-    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/face-detection"></script>
     <script>
-        async function setupCamera() {
-            const constraints = { video: { facingMode: 'environment' } };
-            const stream = await navigator.mediaDevices.getUserMedia(constraints);
+        document.getElementById("upload").addEventListener("change", function (event) {
+            let file = event.target.files[0];
+            if (!file) return;
 
-            const videoLeft = document.getElementById('video-left');
-            const videoRight = document.getElementById('video-right');
+            let img = new Image();
+            img.src = URL.createObjectURL(file);
+            img.onload = function () {
+                let canvas = document.getElementById("canvas");
+                let ctx = canvas.getContext("2d");
+                canvas.width = img.width;
+                canvas.height = img.height;
+                ctx.drawImage(img, 0, 0);
 
-            videoLeft.srcObject = stream;
-            videoRight.srcObject = stream;
+                // وقتی OpenCV آماده شد، اشیا را شناسایی کن
+                cv["onRuntimeInitialized"] = function () {
+                    detectObjects(img, canvas);
+                };
+            };
+        });
 
-            return { videoLeft, videoRight };
-        }
+        function detectObjects(img, canvas) {
+            let src = cv.imread(canvas);
+            let gray = new cv.Mat();
+            cv.cvtColor(src, gray, cv.COLOR_RGBA2GRAY);
 
-        async function detectFaces(video, canvas) {
-            const ctx = canvas.getContext('2d');
-            const detector = await faceDetection.createDetector(faceDetection.SupportedModels.MediaPipeFaceMesh);
+            let edges = new cv.Mat();
+            cv.Canny(gray, edges, 50, 150);
 
-            function drawFaces() {
-                ctx.clearRect(0, 0, canvas.width, canvas.height);
-                ctx.strokeStyle = 'green';
-                ctx.lineWidth = 2;
+            let contours = new cv.MatVector();
+            let hierarchy = new cv.Mat();
+            cv.findContours(edges, contours, hierarchy, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_SIMPLE);
 
-                detector.estimateFaces(video).then(faces => {
-                    faces.forEach(face => {
-                        const box = face.box;
-                        ctx.strokeRect(box.xMin, box.yMin, box.width, box.height);
-                    });
-                });
+            let ctx = canvas.getContext("2d");
+            let container = document.getElementById("container");
 
-                requestAnimationFrame(() => drawFaces());
+            for (let i = 0; i < contours.size(); i++) {
+                let rect = cv.boundingRect(contours.get(i));
+
+                let box = document.createElement("div");
+                box.classList.add("box");
+                box.style.left = rect.x + "px";
+                box.style.top = rect.y + "px";
+                box.style.width = rect.width + "px";
+                box.style.height = rect.height + "px";
+                box.onclick = function () { removeObject(rect, canvas); };
+
+                container.appendChild(box);
             }
 
-            drawFaces();
+            src.delete(); gray.delete(); edges.delete();
+            contours.delete(); hierarchy.delete();
         }
 
-        async function main() {
-            const { videoLeft, videoRight } = await setupCamera();
-
-            const canvasLeft = document.getElementById('canvas-left');
-            const canvasRight = document.getElementById('canvas-right');
-
-            canvasLeft.width = videoLeft.videoWidth / 2;
-            canvasLeft.height = videoLeft.videoHeight / 2;
-            canvasRight.width = videoRight.videoWidth / 2;
-            canvasRight.height = videoRight.videoHeight / 2;
-
-            await detectFaces(videoLeft, canvasLeft);
-            await detectFaces(videoRight, canvasRight);
+        function removeObject(rect, canvas) {
+            let ctx = canvas.getContext("2d");
+            ctx.clearRect(rect.x, rect.y, rect.width, rect.height);
         }
-
-        main();
     </script>
+
 </body>
 </html>
