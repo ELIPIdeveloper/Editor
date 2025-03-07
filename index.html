@@ -1,125 +1,105 @@
 <!DOCTYPE html>
-<html lang="fa">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>تبدیل تصویر به ایموجی</title>
+    <title>VR Camera with Face Detection</title>
     <style>
         body {
-            font-family: Arial, sans-serif;
-            text-align: center;
-            margin: 20px;
-            background-color: black;
-            color: white;
+            margin: 0;
+            overflow: hidden;
         }
-        .emoji-image {
-            font-size: 10px; /* افزایش سایز ایموجی‌ها برای نمایش جزئیات بیشتر */
-            white-space: pre;
-            line-height: 10px;
-            background-color: black;
-            display: inline-block;
-            text-align: left;
+        .container {
+            display: flex;
+            width: 100vw;
+            height: 100vh;
+        }
+        .camera-view {
+            width: 50%;
+            height: 100%;
+            position: relative;
+            overflow: hidden;
+        }
+        video {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+        canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
         }
     </style>
 </head>
 <body>
-    <h1>تبدیل تصویر به ایموجی</h1>
-    <input type="file" id="imageInput" accept="image/*">
-    <button onclick="convertToEmoji()">تبدیل به ایموجی</button>
-    <button id="downloadBtn" style="display: none;" onclick="downloadEmojiImage()">دانلود</button>
-    <pre id="emojiOutput" class="emoji-image"></pre>
+    <div class="container">
+        <div class="camera-view" id="view-left">
+            <video id="video-left" autoplay playsinline></video>
+            <canvas id="canvas-left"></canvas>
+        </div>
+        <div class="camera-view" id="view-right">
+            <video id="video-right" autoplay playsinline></video>
+            <canvas id="canvas-right"></canvas>
+        </div>
+    </div>
 
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/face-detection"></script>
     <script>
-        function convertToEmoji() {
-            const input = document.getElementById('imageInput');
-            if (!input.files.length) {
-                alert('لطفاً یک تصویر انتخاب کنید.');
-                return;
+        async function setupCamera() {
+            const constraints = { video: { facingMode: 'environment' } };
+            const stream = await navigator.mediaDevices.getUserMedia(constraints);
+
+            const videoLeft = document.getElementById('video-left');
+            const videoRight = document.getElementById('video-right');
+
+            videoLeft.srcObject = stream;
+            videoRight.srcObject = stream;
+
+            return { videoLeft, videoRight };
+        }
+
+        async function detectFaces(video, canvas) {
+            const ctx = canvas.getContext('2d');
+            const detector = await faceDetection.createDetector(faceDetection.SupportedModels.MediaPipeFaceMesh);
+
+            function drawFaces() {
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                ctx.strokeStyle = 'green';
+                ctx.lineWidth = 2;
+
+                detector.estimateFaces(video).then(faces => {
+                    faces.forEach(face => {
+                        const box = face.box;
+                        ctx.strokeRect(box.xMin, box.yMin, box.width, box.height);
+                    });
+                });
+
+                requestAnimationFrame(() => drawFaces());
             }
 
-            const file = input.files[0];
-            const reader = new FileReader();
-
-            reader.onload = function (event) {
-                const img = new Image();
-                img.src = event.target.result;
-
-                img.onload = function () {
-                    const canvas = document.createElement('canvas');
-                    const ctx = canvas.getContext('2d');
-
-                    // افزایش جزئیات تصویر (۱۰ برابر بیشتر)
-                    const maxSize = 100; // حداکثر عرض یا ارتفاع کانواس
-                    const scale = Math.max(img.width, img.height) / maxSize;
-                    canvas.width = Math.floor(img.width / scale);
-                    canvas.height = Math.floor(img.height / scale);
-
-                    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-
-                    const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-                    const data = imageData.data;
-
-                    let emojiOutput = '';
-                    for (let y = 0; y < canvas.height; y++) {
-                        for (let x = 0; x < canvas.width; x++) {
-                            const i = (y * canvas.width + x) * 4;
-                            const r = data[i];
-                            const g = data[i + 1];
-                            const b = data[i + 2];
-
-                            emojiOutput += getEmojiByColor(r, g, b);
-                        }
-                        emojiOutput += '\n';
-                    }
-
-                    document.getElementById('emojiOutput').textContent = emojiOutput;
-                    document.getElementById('downloadBtn').style.display = 'inline-block';
-                };
-            };
-
-            reader.readAsDataURL(file);
+            drawFaces();
         }
 
-        function getEmojiByColor(r, g, b) {
-            const brightness = (r * 0.299 + g * 0.587 + b * 0.114) / 255;
-            let hue = Math.atan2(Math.sqrt(3) * (g - b), 2 * r - g - b) * (180 / Math.PI);
-            if (hue < 0) hue += 360;
+        async function main() {
+            const { videoLeft, videoRight } = await setupCamera();
 
-            // لیست ایموجی‌های بیشتر برای دقت رنگی بالاتر
-            const emojis = [
-                '⬛', '⬜', '🔴', '🟠', '🟡', '🟢', '🔵', '🟣', '🟤', '⚫', '⚪', '🔺', '🔻', '🔶', '🔷', '🔳',
-                '🟥', '🟧', '🟨', '🟩', '🟦', '🟪', '🟫', '🏴', '🏳️', '🔘', '🟰', '🎨', '🎭', '🎲', '🎵', '🎶', '🎼',
-                '🎧', '🎤', '🎷', '🎺', '🎸', '🎻', '🎮', '🎰', '🎯', '🎳', '⚽', '🏀', '🏈', '⚾', '🥎', '🏐',
-                '🏉', '🎱', '🎾', '🥏', '🎿', '🏂', '⛷️', '🏋️', '🏊', '🚴', '🚵', '🥇', '🥈', '🥉', '🏆', '🏅',
-                '🎖️', '🥊', '🥋', '⛸️', '🎽', '⛳', '🎯', '🥌', '🏹', '🎣', '🌍', '🌎', '🌏', '🪐', '💫', '⭐',
-                '🌟', '✨', '🔥', '💧', '🌊', '🌀', '☁️', '⛈️', '🌩️', '🌪️', '🌈', '❄️', '☃️', '⛸️', '☀️', '🌤️',
-                '🌥️', '🌦️', '🌧️', '🌨️', '🌫️', '🌬️', '🌵', '🎋', '🍀', '🍁', '🌳', '🌴', '🌱', '🌿', '🍃', '🍂',
-                '☘️', '🌺', '🌻', '🌹', '🥀', '🌾', '🌼', '🌷', '💐', '🍄', '🎄', '🎋', '🌵', '🎍', '🍎', '🍌',
-                '🍉', '🍇', '🍓', '🥭', '🍑', '🍒', '🍊', '🍍', '🥥', '🥝', '🍈', '🍏', '🥕', '🌽', '🥒', '🥬',
-                '🥦', '🧄', '🧅', '🥔', '🍠', '🥜', '🌰', '🍞', '🥖', '🥯', '🥞', '🥓', '🥩', '🍗', '🍖', '🍔',
-                '🍟', '🍕', '🌭', '🍿', '🥤', '🍩', '🍪', '🍰', '🎂', '🧁', '🍫', '🍬', '🍭', '🍮', '🍯',
-                '🍷', '🍸', '🍺', '🍻', '🥂', '🥃', '🍾', '🍶', '🍷', '🥧', '🍖', '🥨', '🍲', '🍳', '🍿', '🍺',
-                '🍴', '🥄', '🍽️', '🍗', '🥩', '🍖', '🍤', '🍠', '🍏', '🍋', '🍒', '🍉', '🍌', '🍓', '🥭', '🥥', '🥝',
-                // لیست ایموجی‌های بیشتر
-            ];
+            const canvasLeft = document.getElementById('canvas-left');
+            const canvasRight = document.getElementById('canvas-right');
 
-            // تبدیل hue و brightness به مقدار عددی ۰ تا ۴۰۹۶
-            const hueIndex = Math.floor((hue / 360) * 64);
-            const brightnessIndex = Math.floor(brightness * 64);  // افزایش دقت رنگی
-            const index = (hueIndex * 64 + brightnessIndex) % emojis.length;
+            canvasLeft.width = videoLeft.videoWidth / 2;
+            canvasLeft.height = videoLeft.videoHeight / 2;
+            canvasRight.width = videoRight.videoWidth / 2;
+            canvasRight.height = videoRight.videoHeight / 2;
 
-            return emojis[index];
+            await detectFaces(videoLeft, canvasLeft);
+            await detectFaces(videoRight, canvasRight);
         }
 
-        function downloadEmojiImage() {
-            const outputDiv = document.getElementById('emojiOutput');
-            const blob = new Blob([outputDiv.textContent], { type: 'text/plain' });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = 'emoji_image.txt';
-            a.click();
-        }
+        main();
     </script>
 </body>
 </html>
