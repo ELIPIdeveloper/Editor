@@ -3,101 +3,46 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>تشخیص و حذف اشیا از عکس</title>
-    <script async src="https://docs.opencv.org/4.x/opencv.js"></script>
+    <title>متن در دایره با پرسپکتیو</title>
     <style>
-        body { text-align: center; font-family: Arial, sans-serif; }
-        canvas { border: 1px solid black; max-width: 100%; }
-        #container { position: relative; display: inline-block; }
-        .box { position: absolute; border: 2px solid red; cursor: pointer; }
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            background-color: #f0f0f0;
+            margin: 0;
+            perspective: 600px;
+        }
+        .circle-container {
+            width: 300px;
+            height: 300px;
+            position: relative;
+            transform-style: preserve-3d;
+            transform: rotateX(40deg) rotateY(20deg);
+        }
+        .text {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            border-radius: 50%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 24px;
+            font-weight: bold;
+            text-transform: uppercase;
+            color: white;
+            background: black;
+            clip-path: polygon(
+                10% 0%, 90% 0%, 100% 10%, 100% 90%, 90% 100%, 10% 100%, 0% 90%, 0% 10%
+            );
+        }
     </style>
 </head>
 <body>
-
-    <h2>آپلود عکس و حذف اشیا</h2>
-    <input type="file" id="upload" accept="image/*">
-    <br><br>
-    <div id="container">
-        <canvas id="canvas"></canvas>
+    <div class="circle-container">
+        <div class="text">SEND NUDES</div>
     </div>
-
-    <script>
-        let originalImage = null; // برای ذخیره تصویر اصلی
-        document.getElementById("upload").addEventListener("change", function (event) {
-            let file = event.target.files[0];
-            if (!file) return;
-
-            let img = new Image();
-            img.src = URL.createObjectURL(file);
-            img.onload = function () {
-                let canvas = document.getElementById("canvas");
-                let ctx = canvas.getContext("2d");
-
-                // تغییر سایز تصویر برای جلوگیری از ابعاد خیلی بزرگ
-                let maxWidth = 800; // عرض حداکثر
-                let scale = maxWidth / img.width;
-                let newWidth = Math.min(img.width, maxWidth);
-                let newHeight = img.height * scale;
-
-                canvas.width = newWidth;
-                canvas.height = newHeight;
-                ctx.drawImage(img, 0, 0, newWidth, newHeight);
-
-                // ذخیره نسخه اصلی برای ریکاوری
-                originalImage = ctx.getImageData(0, 0, newWidth, newHeight);
-
-                // وقتی OpenCV آماده شد، اشیا را شناسایی کن
-                cv["onRuntimeInitialized"] = function () {
-                    detectObjects(canvas);
-                };
-            };
-        });
-
-        function detectObjects(canvas) {
-            let src = cv.imread(canvas);
-            let gray = new cv.Mat();
-            cv.cvtColor(src, gray, cv.COLOR_RGBA2GRAY);
-            cv.GaussianBlur(gray, gray, new cv.Size(5, 5), 0, 0);
-            
-            let edges = new cv.Mat();
-            cv.Canny(gray, edges, 50, 150);
-
-            let contours = new cv.MatVector();
-            let hierarchy = new cv.Mat();
-            cv.findContours(edges, contours, hierarchy, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_SIMPLE);
-
-            let ctx = canvas.getContext("2d");
-            let container = document.getElementById("container");
-
-            // حذف جعبه‌های قبلی
-            document.querySelectorAll(".box").forEach(box => box.remove());
-
-            for (let i = 0; i < contours.size(); i++) {
-                let rect = cv.boundingRect(contours.get(i));
-
-                let box = document.createElement("div");
-                box.classList.add("box");
-                box.style.left = rect.x + "px";
-                box.style.top = rect.y + "px";
-                box.style.width = rect.width + "px";
-                box.style.height = rect.height + "px";
-                box.onclick = function () { removeObject(rect, canvas); };
-
-                container.appendChild(box);
-            }
-
-            src.delete(); gray.delete(); edges.delete();
-            contours.delete(); hierarchy.delete();
-        }
-
-        function removeObject(rect, canvas) {
-            let ctx = canvas.getContext("2d");
-
-            // پر کردن ناحیه با رنگ سفید (یا هر رنگ دلخواه)
-            ctx.fillStyle = "white";
-            ctx.fillRect(rect.x, rect.y, rect.width, rect.height);
-        }
-    </script>
-
 </body>
 </html>
