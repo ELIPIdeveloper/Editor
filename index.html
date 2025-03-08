@@ -3,93 +3,33 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>تبدیل عکس به ایموجی ⚫⚪</title>
-    <style>
-        body { text-align: center; font-family: Arial, sans-serif; }
-        canvas { display: none; }
-        .output { white-space: pre; font-size: 8px; line-height: 8px; }
-    </style>
+    <title>ارسال تصویر به گوگل لنز</title>
 </head>
 <body>
-    <h2>آپلود تصویر برای تبدیل به ایموجی ⚫⚪</h2>
+    <h2>انتخاب عکس و ارسال به Google Lens</h2>
     <input type="file" id="imageInput" accept="image/*">
-    <br><br>
-    <canvas id="canvas"></canvas>
-    <div id="emojiOutput" class="output"></div>
-    <button id="downloadBtn" style="display:none;">دانلود خروجی</button>
+    <button onclick="uploadToGoogleLens()">ارسال به گوگل لنز</button>
 
     <script>
-        document.getElementById('imageInput').addEventListener('change', function(event) {
-            const file = event.target.files[0];
-            if (!file) return;
-
-            const reader = new FileReader();
-            reader.onload = function(e) {
-                const img = new Image();
-                img.src = e.target.result;
-                img.onload = function() {
-                    processImage(img);
-                };
-            };
-            reader.readAsDataURL(file);
-        });
-
-        function processImage(img) {
-            const canvas = document.getElementById('canvas');
-            const ctx = canvas.getContext('2d');
-
-            const width = 50; // عرض کوچک برای تبدیل
-            const height = (img.height / img.width) * width;
-
-            canvas.width = width;
-            canvas.height = height;
-            ctx.drawImage(img, 0, 0, width, height);
-
-            const imageData = ctx.getImageData(0, 0, width, height);
-            const pixels = imageData.data;
-            let emojiArt = '';
-
-            for (let i = 0; i < pixels.length; i += 4) {
-                const avg = (pixels[i] + pixels[i + 1] + pixels[i + 2]) / 3; // میانگین رنگ‌ها
-                const emoji = avg < 128 ? '⚫' : '⚪';
-                emojiArt += emoji;
-
-                if ((i / 4 + 1) % width === 0) emojiArt += '\n';
+        function uploadToGoogleLens() {
+            const input = document.getElementById('imageInput');
+            if (input.files.length === 0) {
+                alert("لطفاً یک تصویر انتخاب کنید.");
+                return;
             }
 
-            document.getElementById('emojiOutput').textContent = emojiArt;
-            createImageFromText(emojiArt);
-        }
+            const file = input.files[0];
+            const reader = new FileReader();
 
-        function createImageFromText(text) {
-            const canvas = document.createElement('canvas');
-            const ctx = canvas.getContext('2d');
+            reader.onload = function(event) {
+                const blob = new Blob([event.target.result], { type: file.type });
+                const url = URL.createObjectURL(blob);
 
-            const lines = text.split('\n');
-            const fontSize = 10;
-            const width = 10 * lines[0].length;
-            const height = fontSize * lines.length;
-
-            canvas.width = width;
-            canvas.height = height;
-            ctx.fillStyle = 'white';
-            ctx.fillRect(0, 0, width, height);
-            ctx.fillStyle = 'black';
-            ctx.font = `${fontSize}px Arial`;
-
-            lines.forEach((line, index) => {
-                ctx.fillText(line, 0, (index + 1) * fontSize);
-            });
-
-            const link = document.getElementById('downloadBtn');
-            link.style.display = 'block';
-            link.textContent = 'دانلود خروجی';
-            link.onclick = function() {
-                const a = document.createElement('a');
-                a.href = canvas.toDataURL('image/png');
-                a.download = 'emoji-art.png';
-                a.click();
+                // باز کردن لینک Google Lens برای جستجوی تصویر
+                window.open(`https://lens.google.com/uploadbyurl?url=${encodeURIComponent(url)}`, '_blank');
             };
+
+            reader.readAsArrayBuffer(file);
         }
     </script>
 </body>
